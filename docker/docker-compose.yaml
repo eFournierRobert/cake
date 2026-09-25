@@ -1,0 +1,16 @@
+services:
+  mariadb:
+    image: mariadb:latest
+    container_name: cake-db
+    environment:
+      MARIADB_DATABASE: cake
+      MARIADB_USER: cake-user
+      MARIADB_PASSWORD: cake-user
+      MARIADB_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mariadb_data:/var/lib/mysql
+
+volumes:
+  mariadb_data:
