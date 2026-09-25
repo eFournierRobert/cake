@@ -4,6 +4,7 @@ import (
 	"efournierrobert/cake-backend/internal/repository"
 	"fmt"
 	"log"
+	"net/http"
 )
 
 func main() {
@@ -14,7 +15,15 @@ func main() {
 		log.Fatalf("error while opening connection to database: %s", fmt.Errorf("%w", err))
 	}
 	defer db.Close()
-	// Create HTTP server
-	// Initialize handlers
-	// Start HTTP server
+
+	mux := http.NewServeMux()
+	server := &http.Server{
+		Addr:    ":8080",
+		Handler: mux,
+	}
+
+	log.Println("Cake server started and listening on port 8080")
+	if err := server.ListenAndServe(); err != nil {
+		log.Fatalf("error while http server was running: %s", fmt.Errorf("%w", err))
+	}
 }
