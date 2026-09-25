@@ -9,8 +9,10 @@ import (
 	"github.com/pressly/goose"
 )
 
+var databaseDriver = "mysql"
+
 func NewDbConnection() (*sqlx.DB, error) {
-	db, err := sqlx.Connect("mysql", os.Getenv("DATABASE_URL"))
+	db, err := sqlx.Connect(databaseDriver, os.Getenv("DATABASE_URL"))
 	if err != nil {
 		return nil, err
 	}
