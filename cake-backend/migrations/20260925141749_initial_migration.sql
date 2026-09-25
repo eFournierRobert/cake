@@ -1,4 +1,12 @@
 -- +goose Up
+CREATE TABLE user_roles (
+    id INT AUTO_INCREMENT,
+    uuid CHAR(36) NOT NULL UNIQUE,
+    name VARCHAR(32) NOT NULL UNIQUE,
+
+    CONSTRAINT PK_user_roles PRIMARY KEY (id)
+);
+
 CREATE TABLE users (
     id INT AUTO_INCREMENT,
     uuid CHAR(36) NOT NULL UNIQUE,
@@ -8,8 +16,10 @@ CREATE TABLE users (
     last_name VARCHAR(255),
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
+    role_id INT NOT NULL,
 
-    CONSTRAINT PK_users PRIMARY KEY (id)
+    CONSTRAINT PK_users PRIMARY KEY (id),
+    CONSTRAINT FK_user_role_role_id FOREIGN KEY (role_id) REFERENCES user_roles(id)
 );
 
 CREATE TABLE conversations (
@@ -23,11 +33,11 @@ CREATE TABLE conversations (
     CONSTRAINT FK_users_owner FOREIGN KEY (owner_id) REFERENCES users(id)
 );
 
-CREATE TABLE roles (
+CREATE TABLE message_roles (
     id INT AUTO_INCREMENT,
     name VARCHAR(32) NOT NULL UNIQUE,
 
-    CONSTRAINT PK_roles PRIMARY KEY (id)
+    CONSTRAINT PK_message_roles PRIMARY KEY (id)
 );
 
 CREATE TABLE messages (
@@ -40,15 +50,21 @@ CREATE TABLE messages (
 
     CONSTRAINT PK_messages PRIMARY KEY (id),
     CONSTRAINT FK_conversations_conversation_id FOREIGN KEY (conversation_id) REFERENCES conversations(id),
-    CONSTRAINT FK_roles_role_id FOREIGN KEY (role_id) REFERENCES roles(id)
+    CONSTRAINT FK_message_roles_role_id FOREIGN KEY (role_id) REFERENCES message_roles(id)
 );
 
-INSERT INTO roles (id, name) VALUES (1, 'user');
-INSERT INTO roles (id, name) VALUES (2, 'system');
-INSERT INTO roles (id, name) VALUES (3, 'assistant');
+INSERT INTO message_roles (name) VALUES
+                                     ('user'),
+                                     ('system'),
+                                     ('assistant');
+
+INSERT INTO user_roles (uuid, name) VALUES
+                                        ('5a18559d-9d20-4251-8a72-b36efbaff514', 'admin'),
+                                        ('15afe83a-fd92-4d66-8f22-5a3bedbb53e1', 'user');
 
 -- +goose Down
-DROP TABLE roles;
 DROP TABLE messages;
+DROP TABLE message_roles;
 DROP TABLE conversations;
 DROP TABLE users;
+DROP TABLE user_roles;
