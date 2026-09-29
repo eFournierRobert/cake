@@ -1,0 +1,1112 @@
+openapi: 3.1.0
+info:
+  title: Cake API
+  version: 1.0.0
+  description: |
+    Initial API contract for Cake. Some response details are provisional and
+    should be aligned with the implementation.
+servers:
+  - url: /
+    description: Same-origin deployment
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Conversations
+  - name: Chat
+  - name: Models
+  - name: Providers
+
+security:
+  - bearerAuth: []
+
+paths:
+  /login:
+    post:
+      tags: [Auth]
+      summary: Authenticate
+      description: Obtain a JWT using username and password.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /logout:
+    post:
+      tags: [Auth]
+      summary: Log out
+      description: |
+        Logs out the current client. If JWTs are stateless and are not revoked
+        server-side, the client must discard its token.
+      responses:
+        '200':
+          description: Logged out.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /user:
+    get:
+      tags: [Users]
+      summary: Get current user
+      responses:
+        '200':
+          description: Current user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Users]
+      summary: Update current user
+      description: Update editable profile fields for the authenticated user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Updated user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /user/password:
+    post:
+      tags: [Users]
+      summary: Change current user's password
+      description: Change the authenticated user's own password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+      responses:
+        '200':
+          description: Password changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users:
+    get:
+      tags: [Users]
+      summary: List users
+      description: Administrator only.
+      responses:
+        '200':
+          description: Users.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Users]
+      summary: Create user
+      description: Administrator only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: User created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/{uuid}:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    get:
+      tags: [Users]
+      summary: Get user
+      description: Administrator only.
+      responses:
+        '200':
+          description: User.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Users]
+      summary: Update user
+      description: Administrator only. Can update the user's role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUserUpdate'
+      responses:
+        '200':
+          description: Updated user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Users]
+      summary: Delete user
+      description: Administrator only.
+      responses:
+        '204':
+          description: User deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /users/{uuid}/password:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    post:
+      tags: [Users]
+      summary: Change a user's password
+      description: Administrator only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChangeRequest'
+      responses:
+        '200':
+          description: Password changed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conversations:
+    get:
+      tags: [Conversations]
+      summary: List current user's conversations
+      responses:
+        '200':
+          description: Conversations.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Conversations]
+      summary: Create conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationCreate'
+      responses:
+        '201':
+          description: Conversation created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conversations/{uuid}:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    get:
+      tags: [Conversations]
+      summary: Get conversation
+      description: Only the conversation owner can access it.
+      responses:
+        '200':
+          description: Conversation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Conversations]
+      summary: Update conversation
+      description: Only the conversation owner can update it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConversationUpdate'
+      responses:
+        '200':
+          description: Updated conversation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Conversations]
+      summary: Delete conversation
+      description: Only the conversation owner can delete it.
+      responses:
+        '204':
+          description: Conversation deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conversations/{uuid}/messages:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    get:
+      tags: [Conversations]
+      summary: List conversation messages
+      description: Only the conversation owner can access its messages.
+      responses:
+        '200':
+          description: Messages in the conversation.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /chat:
+    post:
+      tags: [Chat]
+      summary: Send a message and stream the assistant response
+      description: |
+        Starts inference for the supplied conversation and model. The response
+        is a Server-Sent Events (SSE) stream. Before streaming begins, errors
+        use ordinary HTTP status codes. Errors after streaming begins are sent
+        as an `error` event. The client should read this POST response as a
+        streaming fetch response; the browser's native EventSource API does
+        not support POST request bodies.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: SSE stream containing generated message events.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  SSE events. Each event has an `event` name and a JSON `data`
+                  payload. Event names are `start`, `message`, `done`, and
+                  `error`. Message events may be emitted multiple times.
+              examples:
+                stream:
+                  summary: Example stream
+                  value: |
+                    event: start
+                    data: {"message_uuid":"550e8400-e29b-41d4-a716-446655440000"}
+
+                    event: message
+                    data: {"content":"Hello"}
+
+                    event: message
+                    data: {"content":" there!"}
+
+                    event: done
+                    data: {"message_uuid":"550e8400-e29b-41d4-a716-446655440000"}
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /models:
+    get:
+      tags: [Models]
+      summary: List activated models
+      responses:
+        '200':
+          description: Activated models available to the user.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Model'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /models/all:
+    get:
+      tags: [Models]
+      summary: List all models
+      description: Administrator only. Includes inactive models.
+      responses:
+        '200':
+          description: All registered models.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Model'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /models/refresh:
+    post:
+      tags: [Models]
+      summary: Refresh provider model catalogs
+      description: |
+        Administrator only. An empty request body refreshes all providers.
+        Supplying a provider UUID refreshes only that provider. Newly
+        discovered models should be inactive by default; existing activation
+        choices should be preserved.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelRefreshRequest'
+            examples:
+              all:
+                summary: Refresh all providers
+                value: {}
+              one:
+                summary: Refresh one provider
+                value:
+                  provider_uuid: 550e8400-e29b-41d4-a716-446655440000
+      responses:
+        '200':
+          description: Refresh operation completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelRefreshResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /models/{uuid}:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    put:
+      tags: [Models]
+      summary: Update model
+      description: Administrator only. Replaces the editable model configuration.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ModelUpdate'
+      responses:
+        '200':
+          description: Updated model.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Model'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /providers:
+    get:
+      tags: [Providers]
+      summary: List providers
+      description: Administrator only. API keys are never returned.
+      responses:
+        '200':
+          description: Providers.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Provider'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Providers]
+      summary: Create provider
+      description: Administrator only. The API key is optional.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderCreate'
+      responses:
+        '201':
+          description: Provider created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Provider'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /providers/{uuid}:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    get:
+      tags: [Providers]
+      summary: Get provider
+      description: Administrator only. API keys are never returned.
+      responses:
+        '200':
+          description: Provider.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Provider'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [Providers]
+      summary: Update provider
+      description: |
+        Administrator only. Replaces the editable provider configuration.
+        Omit the API key only if the implementation supports retaining the
+        existing key; otherwise send a replacement or explicitly clear it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProviderUpdate'
+      responses:
+        '200':
+          description: Updated provider.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Provider'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Providers]
+      summary: Delete provider
+      description: Administrator only. Deletion behavior for associated models is implementation-defined.
+      responses:
+        '204':
+          description: Provider deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /providers/{uuid}/test:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    post:
+      tags: [Providers]
+      summary: Test provider connection
+      description: Administrator only. Tests the provider configuration without modifying it.
+      responses:
+        '200':
+          description: Test completed, including unsuccessful connection tests.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProviderTestResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /providers/{uuid}/models/refresh:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    post:
+      tags: [Providers, Models]
+      summary: Refresh a provider's models
+      description: Administrator only. Fetches and synchronizes the model catalog for this provider.
+      responses:
+        '200':
+          description: Refresh operation completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelRefreshResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Uuid:
+      name: uuid
+      in: path
+      required: true
+      description: Resource UUID.
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    BadRequest:
+      description: The request is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Authentication is required or the supplied token is invalid.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: The authenticated user does not have permission.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: The requested resource was not found.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: The request conflicts with the current resource state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: An unexpected server error occurred.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+          description: Stable machine-readable error code.
+          examples: [invalid_request]
+        message:
+          type: string
+          description: Human-readable error description.
+          examples: [The request body is invalid.]
+
+    MessageResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          examples: [OK]
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+          writeOnly: true
+
+    LoginResponse:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          description: JWT access token.
+        token_type:
+          type: string
+          const: Bearer
+          default: Bearer
+
+    User:
+      type: object
+      required: [uuid, username, role, first_name, last_name, last_updated, created_at]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        username:
+          type: string
+        role:
+          type: string
+          description: User role.
+          examples: [user]
+        first_name:
+          type: string
+        last_name:
+          type: string
+        last_updated:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    UserCreate:
+      type: object
+      additionalProperties: false
+      required: [username, password, role]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+          writeOnly: true
+        role:
+          type: string
+          description: Role assigned by the administrator.
+        first_name:
+          type: string
+        last_name:
+          type: string
+
+    UserUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        username:
+          type: string
+
+    AdminUserUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        username:
+          type: string
+        role:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+
+    PasswordChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [password]
+      properties:
+        password:
+          type: string
+          format: password
+          writeOnly: true
+
+    Conversation:
+      type: object
+      required: [uuid, title, created_at, updated_at]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        title:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ConversationCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+
+    ConversationUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title:
+          type: string
+
+    Message:
+      type: object
+      required: [uuid, conversation_uuid, role, content, created_at]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        conversation_uuid:
+          type: string
+          format: uuid
+        role:
+          type: string
+          enum: [system, user, assistant, tool]
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ChatRequest:
+      type: object
+      additionalProperties: false
+      required: [conversation_uuid, model_uuid, message]
+      properties:
+        conversation_uuid:
+          type: string
+          format: uuid
+        model_uuid:
+          type: string
+          format: uuid
+        message:
+          type: string
+          minLength: 1
+        reasoning:
+          type: string
+          description: Provider-supported reasoning level.
+          examples: [medium]
+
+    Model:
+      type: object
+      required: [uuid, name, context_length, provider_model_id, provider_id, activated, created_at]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        context_length:
+          type: integer
+          minimum: 0
+        provider_model_id:
+          type: string
+        provider_id:
+          type: integer
+        activated:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    ModelUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        context_length:
+          type: integer
+          minimum: 0
+        activated:
+          type: boolean
+
+    ModelRefreshRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        provider_uuid:
+          type: string
+          format: uuid
+
+    ModelRefreshResponse:
+      type: object
+      required: [results]
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            required: [provider_uuid, success, discovered, added]
+            properties:
+              provider_uuid:
+                type: string
+                format: uuid
+              success:
+                type: boolean
+              discovered:
+                type: integer
+                minimum: 0
+              added:
+                type: integer
+                minimum: 0
+              error:
+                type: string
+                description: Present when this provider's refresh failed.
+
+    Provider:
+      type: object
+      required: [uuid, name, base_url, has_api_key, created_at, updated_at]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        base_url:
+          type: string
+          format: uri
+        has_api_key:
+          type: boolean
+          description: Whether an API key is configured. The key itself is never returned.
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProviderCreate:
+      type: object
+      additionalProperties: false
+      required: [name, base_url]
+      properties:
+        name:
+          type: string
+        base_url:
+          type: string
+          format: uri
+        api_key:
+          type: string
+          format: password
+          writeOnly: true
+
+    ProviderUpdate:
+      type: object
+      additionalProperties: false
+      required: [name, base_url]
+      properties:
+        name:
+          type: string
+        base_url:
+          type: string
+          format: uri
+        api_key:
+          type: string
+          format: password
+          writeOnly: true
+          description: If omitted, retain the existing key. An empty string may be used to clear it.
+
+    ProviderTestResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        latency_ms:
+          type: integer
+          minimum: 0
+        error:
+          type: string
+          description: Stable error code when the test fails.
+        message:
+          type: string
+          description: Human-readable result.
