@@ -17,6 +17,6 @@ ALTER TABLE conversations ADD space_id INT NOT NULL,
 
 -- +goose Down
 ALTER TABLE conversations
-    DROP CONSTRAINT FK_spaces_space_id,
+    DROP FOREIGN KEY FK_spaces_space_id,
     DROP space_id;
 DROP TABLE spaces;

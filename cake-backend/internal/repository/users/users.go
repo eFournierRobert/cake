@@ -12,8 +12,8 @@ type Repository struct {
 	conn *sqlx.DB
 }
 
-func New(db *sqlx.DB) Repository {
-	return Repository{conn: db}
+func New(db *sqlx.DB) *Repository {
+	return &Repository{conn: db}
 }
 
 func (r *Repository) GetAllUsers() ([]User, error) {
@@ -27,7 +27,8 @@ func (r *Repository) GetAllUsers() ([]User, error) {
 
 func (r *Repository) GetUser(uuid uuid.UUID) (User, error) {
 	var user User
-	err := r.conn.Get(&user, "SELECT * FROM users WHERE uuid = $1", uuid.String())
+	err := r.conn.Get(&user, "SELECT * FROM users WHERE uuid = ?1", uuid.String())
+
 	return user, &repo_errors.InternalDbError{Err: err}
 }
 
@@ -62,8 +63,8 @@ func (r *Repository) CreateUser(user User) error {
 	return nil
 }
 
-func (r *Repository) DeleteUser(id int) error {
-	_, err := r.conn.NamedExec("DELETE FROM users WHERE id = $1", id)
+func (r *Repository) DeleteUser(uuid uuid.UUID) error {
+	_, err := r.conn.NamedExec("DELETE FROM users WHERE uuid = ?1", uuid.String())
 	if err != nil {
 		return &repo_errors.InternalDbError{Err: err}
 	}
