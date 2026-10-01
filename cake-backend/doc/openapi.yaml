@@ -12,6 +12,7 @@ servers:
 tags:
   - name: Auth
   - name: Users
+  - name: Spaces
   - name: Conversations
   - name: Chat
   - name: Models
@@ -274,13 +275,117 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /conversations:
+  /spaces:
     get:
-      tags: [Conversations]
-      summary: List current user's conversations
+      tags: [Spaces]
+      summary: List current user's spaces
       responses:
         '200':
-          description: Conversations.
+          description: Spaces belonging to the authenticated user.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Space'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [Spaces]
+      summary: Create a space
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceCreate'
+      responses:
+        '201':
+          description: Space created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Space'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /spaces/{uuid}:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    get:
+      tags: [Spaces]
+      summary: Get a space
+      description: Only the space owner can access it.
+      responses:
+        '200':
+          description: Space.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Space'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags: [Spaces]
+      summary: Update a space
+      description: Only the space owner can update it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SpaceUpdate'
+      responses:
+        '200':
+          description: Updated space.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Space'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [Spaces]
+      summary: Delete a space
+      description: Only the space owner can delete it. Deletion fails if it contains conversations.
+      responses:
+        '204':
+          description: Space deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /spaces/{uuid}/conversations:
+    parameters:
+      - $ref: '#/components/parameters/Uuid'
+    get:
+      tags: [Conversations]
+      summary: List conversations in a space
+      description: Only the space owner can access its conversations.
+      responses:
+        '200':
+          description: Conversations in the space.
           content:
             application/json:
               schema:
@@ -289,38 +394,25 @@ paths:
                   $ref: '#/components/schemas/Conversation'
         '401':
           $ref: '#/components/responses/Unauthorized'
-        '500':
-          $ref: '#/components/responses/InternalError'
-    post:
-      tags: [Conversations]
-      summary: Create conversation
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ConversationCreate'
-      responses:
-        '201':
-          description: Conversation created.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Conversation'
-        '400':
-          $ref: '#/components/responses/BadRequest'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /conversations/{uuid}:
+  /spaces/{uuid}/conversations/{conversation_uuid}:
     parameters:
       - $ref: '#/components/parameters/Uuid'
+      - name: conversation_uuid
+        in: path
+        required: true
+        description: Conversation UUID.
+        schema:
+          type: string
+          format: uuid
     get:
       tags: [Conversations]
-      summary: Get conversation
-      description: Only the conversation owner can access it.
+      summary: Get a conversation
+      description: Only the space owner can access the conversation.
       responses:
         '200':
           description: Conversation.
@@ -336,8 +428,8 @@ paths:
           $ref: '#/components/responses/InternalError'
     patch:
       tags: [Conversations]
-      summary: Update conversation
-      description: Only the conversation owner can update it.
+      summary: Update a conversation
+      description: Only the space owner can update the conversation.
       requestBody:
         required: true
         content:
@@ -361,8 +453,8 @@ paths:
           $ref: '#/components/responses/InternalError'
     delete:
       tags: [Conversations]
-      summary: Delete conversation
-      description: Only the conversation owner can delete it.
+      summary: Delete a conversation
+      description: Only the space owner can delete the conversation.
       responses:
         '204':
           description: Conversation deleted.
@@ -373,13 +465,20 @@ paths:
         '500':
           $ref: '#/components/responses/InternalError'
 
-  /conversations/{uuid}/messages:
+  /spaces/{uuid}/conversations/{conversation_uuid}/messages:
     parameters:
       - $ref: '#/components/parameters/Uuid'
+      - name: conversation_uuid
+        in: path
+        required: true
+        description: Conversation UUID.
+        schema:
+          type: string
+          format: uuid
     get:
       tags: [Conversations]
       summary: List conversation messages
-      description: Only the conversation owner can access its messages.
+      description: Only the space owner can access the conversation's messages.
       responses:
         '200':
           description: Messages in the conversation.
@@ -901,11 +1000,56 @@ components:
           format: password
           writeOnly: true
 
-    Conversation:
+    Space:
       type: object
-      required: [uuid, title, created_at, updated_at]
+      required: [uuid, name, system_prompt, created_at, updated_at]
       properties:
         uuid:
+          type: string
+          format: uuid
+        name:
+          type: string
+        system_prompt:
+          type: [string, 'null']
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SpaceCreate:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        system_prompt:
+          type: [string, 'null']
+
+    SpaceUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        system_prompt:
+          type: [string, 'null']
+
+    Conversation:
+      type: object
+      required: [uuid, space_uuid, title, created_at, updated_at]
+      properties:
+        uuid:
+          type: string
+          format: uuid
+        space_uuid:
           type: string
           format: uuid
         title:
@@ -916,13 +1060,6 @@ components:
         updated_at:
           type: string
           format: date-time
-
-    ConversationCreate:
-      type: object
-      additionalProperties: false
-      properties:
-        title:
-          type: string
 
     ConversationUpdate:
       type: object
@@ -954,8 +1091,11 @@ components:
     ChatRequest:
       type: object
       additionalProperties: false
-      required: [conversation_uuid, model_uuid, message]
+      required: [space_uuid, conversation_uuid, model_uuid, message]
       properties:
+        space_uuid:
+          type: string
+          format: uuid
         conversation_uuid:
           type: string
           format: uuid
