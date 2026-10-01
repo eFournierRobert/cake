@@ -2,6 +2,7 @@ package users
 
 import "time"
 
+// User is a row of the users table.
 type User struct {
 	Id           int       `db:"id"`
 	Uuid         string    `db:"uuid"`
