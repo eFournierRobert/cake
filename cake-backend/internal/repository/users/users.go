@@ -1,10 +1,14 @@
 package users
 
 import (
-	"efournierrobert/cake-backend/internal/repository/repo_errors"
+	"database/sql"
+	"errors"
 	"time"
 	"uuid"
 
+	"efournierrobert/cake-backend/internal/repository/repo_errors"
+
+	"github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -27,9 +31,15 @@ func (r *Repository) GetAllUsers() ([]User, error) {
 
 func (r *Repository) GetUser(uuid uuid.UUID) (User, error) {
 	var user User
-	err := r.conn.Get(&user, "SELECT * FROM users WHERE uuid = ?1", uuid.String())
+	err := r.conn.Get(&user, "SELECT * FROM users WHERE uuid = ?", uuid.String())
+	if errors.Is(err, sql.ErrNoRows) {
+		return user, &repo_errors.UserNotFound{}
+	}
+	if err != nil {
+		return user, &repo_errors.InternalDbError{Err: err}
+	}
 
-	return user, &repo_errors.InternalDbError{Err: err}
+	return user, nil
 }
 
 func (r *Repository) UpdateUser(user User) error {
@@ -57,6 +67,10 @@ func (r *Repository) CreateUser(user User) error {
 
 	_, err := r.conn.NamedExec("INSERT INTO users (uuid, username, password_hash, first_name, last_name, created_at, updated_at, role_id) VALUES (:Uuid, :Username, :PasswordHash, :FirstName, :LastName, :CreatedAt, :UpdatedAt, :RoleId)", user)
 	if err != nil {
+		var mySQLError *mysql.MySQLError
+		if errors.As(err, &mySQLError) && mySQLError.Number == 1062 {
+			return &repo_errors.UsernameAlreadyExists{}
+		}
 		return &repo_errors.InternalDbError{Err: err}
 	}
 
@@ -64,9 +78,18 @@ func (r *Repository) CreateUser(user User) error {
 }
 
 func (r *Repository) DeleteUser(uuid uuid.UUID) error {
-	_, err := r.conn.NamedExec("DELETE FROM users WHERE uuid = ?1", uuid.String())
+	results, err := r.conn.Exec("DELETE FROM users WHERE uuid = ?", uuid.String())
 	if err != nil {
 		return &repo_errors.InternalDbError{Err: err}
+	}
+
+	rowsAffected, err := results.RowsAffected()
+	if err != nil {
+		return &repo_errors.InternalDbError{Err: err}
+	}
+
+	if rowsAffected == 0 {
+		return &repo_errors.UserNotFound{}
 	}
 
 	return nil

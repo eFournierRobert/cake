@@ -5,7 +5,13 @@ import "fmt"
 type UserNotFound struct{}
 
 func (e *UserNotFound) Error() string {
-	return "no rows affected"
+	return "user not found"
+}
+
+type UsernameAlreadyExists struct{}
+
+func (e *UsernameAlreadyExists) Error() string {
+	return "username already exists"
 }
 
 type InternalDbError struct {
