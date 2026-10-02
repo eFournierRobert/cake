@@ -9,11 +9,11 @@ CREATE TABLE spaces (
     owner_id INT NOT NULL,
 
     CONSTRAINT PK_spaces PRIMARY KEY (id),
-    CONSTRAINT FK_users_owner_id FOREIGN KEY (owner_id) REFERENCES users(id)
+    CONSTRAINT FK_users_owner_id FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 ALTER TABLE conversations ADD space_id INT NOT NULL,
-    ADD CONSTRAINT FK_spaces_space_id FOREIGN KEY (space_id) REFERENCES spaces(id);
+    ADD CONSTRAINT FK_spaces_space_id FOREIGN KEY (space_id) REFERENCES spaces(id) ON DELETE CASCADE;
 
 -- +goose Down
 ALTER TABLE conversations

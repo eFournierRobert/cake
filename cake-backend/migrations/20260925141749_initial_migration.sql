@@ -30,7 +30,7 @@ CREATE TABLE conversations (
     created_at DATETIME NOT NULL,
 
     CONSTRAINT PK_conversations PRIMARY KEY (id),
-    CONSTRAINT FK_users_owner FOREIGN KEY (owner_id) REFERENCES users(id)
+    CONSTRAINT FK_users_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE message_roles (
@@ -49,7 +49,7 @@ CREATE TABLE messages (
     role_id INT NOT NULL,
 
     CONSTRAINT PK_messages PRIMARY KEY (id),
-    CONSTRAINT FK_conversations_conversation_id FOREIGN KEY (conversation_id) REFERENCES conversations(id),
+    CONSTRAINT FK_conversations_conversation_id FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
     CONSTRAINT FK_message_roles_role_id FOREIGN KEY (role_id) REFERENCES message_roles(id)
 );
 

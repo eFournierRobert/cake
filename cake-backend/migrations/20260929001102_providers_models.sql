@@ -23,7 +23,7 @@ CREATE TABLE models (
     activated boolean NOT NULL DEFAULT FALSE,
 
     CONSTRAINT PK_models PRIMARY KEY (id),
-    CONSTRAINT FK_providers_provider_id FOREIGN KEY (provider_id) REFERENCES providers(id),
+    CONSTRAINT FK_providers_provider_id FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE CASCADE,
     CONSTRAINT UNIQUE_models_providers_model_id UNIQUE (provider_id, provider_model_id)
 );
 
