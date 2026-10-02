@@ -12,6 +12,7 @@ import (
 	"uuid"
 
 	"github.com/jmoiron/sqlx"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Service struct {
@@ -67,6 +68,34 @@ func (s *Service) ModifyUser(currentUserUuid string, userUpdate userHandler.User
 	return userDto, nil
 }
 
+func (s *Service) ChangePassword(currentUserUuid string, newPassword string) error {
+	if !isPasswordGoodLength(newPassword) {
+		return handler_errors.ErrInvalidPassword
+	}
+
+	user, err := s.getUserFromStrUuid(currentUserUuid)
+	if err != nil {
+		log.Printf("ChangePassword error: %s\n", fmt.Errorf("%w", err))
+		return getAppErrorType(err)
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("ChangePassword error: %s\n", fmt.Errorf("%w", err))
+		return getAppErrorType(err)
+	}
+
+	user.PasswordHash = newHash
+
+	user, err = s.repo.UpdateUser(user)
+	if err != nil {
+		log.Printf("ChangePassword error: %s\n", fmt.Errorf("%w", err))
+		return getAppErrorType(err)
+	}
+
+	return nil
+}
+
 func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
 	realUuid, err := uuid.Parse(strUuid)
 	if err != nil {
@@ -104,4 +133,8 @@ func getAppErrorType(err error) error {
 	}
 
 	return handler_errors.ErrUnexpectedError
+}
+
+func isPasswordGoodLength(password string) bool {
+	return len(password) >= 12 && len(password) <= 128
 }

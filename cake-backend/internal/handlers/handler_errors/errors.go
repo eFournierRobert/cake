@@ -27,4 +27,10 @@ var (
 		Message:    "The requested user does not exist",
 		HttpStatus: http.StatusNotFound,
 	}
+
+	ErrInvalidPassword = AppError{
+		Code:       "invalid_password",
+		Message:    "The provided password is invalid",
+		HttpStatus: http.StatusBadRequest,
+	}
 )
