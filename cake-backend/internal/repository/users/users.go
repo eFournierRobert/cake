@@ -50,7 +50,9 @@ func (r *Repository) GetAllUsers() ([]UserWithRole, error) {
 // *repo_errors.UserNotFound.
 func (r *Repository) GetUser(uuid uuid.UUID) (User, error) {
 	var user User
-	err := r.conn.Get(&user, "SELECT * FROM users WHERE uuid = ?", uuid.String())
+	err := r.conn.Get(&user,
+		`SELECT * FROM users WHERE uuid = ?`,
+		uuid.String())
 	if errors.Is(err, sql.ErrNoRows) {
 		return user, &repo_errors.UserNotFound{}
 	}
@@ -66,7 +68,16 @@ func (r *Repository) GetUser(uuid uuid.UUID) (User, error) {
 // matches.
 func (r *Repository) UpdateUser(user User) (User, error) {
 	user.UpdatedAt = time.Now()
-	results, err := r.conn.NamedExec("UPDATE users SET first_name = :first_name, last_name = :last_name, username = :username, password_hash = :password_hash, role_id = :role_id, updated_at = :updated_at WHERE uuid = :uuid", user)
+	results, err := r.conn.NamedExec(
+		`UPDATE users 
+			SET first_name = :first_name, 
+			    last_name = :last_name, 
+			    username = :username, 
+			    password_hash = :password_hash, 
+			    role_id = :role_id, 
+			    updated_at = :updated_at 
+			WHERE uuid = :uuid`,
+		user)
 	if err != nil {
 		return User{}, &repo_errors.InternalDbError{Err: err}
 	}
@@ -91,7 +102,26 @@ func (r *Repository) CreateUser(user User) (User, error) {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
-	_, err := r.conn.NamedExec("INSERT INTO users (uuid, username, password_hash, first_name, last_name, created_at, updated_at, role_id) VALUES (:uuid, :username, :password_hash, :first_name, :last_name, :created_at, :updated_at, :role_id)", user)
+	_, err := r.conn.NamedExec(
+		`INSERT INTO users (
+                   uuid, 
+                   username, 
+                   password_hash, 
+                   first_name, 
+                   last_name, 
+                   created_at, 
+                   updated_at, 
+                   role_id) 
+		VALUES (
+		        :uuid, 
+		        :username, 
+		        :password_hash, 
+		        :first_name, 
+		        :last_name, 
+		        :created_at, 
+		        :updated_at, 
+		        :role_id)`,
+		user)
 	if err != nil {
 		var mySQLError *mysql.MySQLError
 		if errors.As(err, &mySQLError) && mySQLError.Number == 1062 {
@@ -107,7 +137,9 @@ func (r *Repository) CreateUser(user User) (User, error) {
 // cascading, the conversations and spaces they own. It returns
 // *repo_errors.UserNotFound if no user matches.
 func (r *Repository) DeleteUser(uuid uuid.UUID) error {
-	results, err := r.conn.Exec("DELETE FROM users WHERE uuid = ?", uuid.String())
+	results, err := r.conn.Exec(
+		`DELETE FROM users WHERE uuid = ?`,
+		uuid.String())
 	if err != nil {
 		return &repo_errors.InternalDbError{Err: err}
 	}
