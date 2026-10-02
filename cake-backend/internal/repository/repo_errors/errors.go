@@ -26,3 +26,9 @@ type InternalDbError struct {
 func (e *InternalDbError) Error() string {
 	return fmt.Errorf("internal DB error: %w", e.Err).Error()
 }
+
+type RoleNotFound struct{}
+
+func (e *RoleNotFound) Error() string {
+	return "role not found"
+}
