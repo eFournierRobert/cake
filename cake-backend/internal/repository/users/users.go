@@ -23,9 +23,23 @@ func New(db *sqlx.DB) *Repository {
 }
 
 // GetAllUsers returns all users, newest first.
-func (r *Repository) GetAllUsers() ([]User, error) {
-	var users []User
-	if err := r.conn.Select(&users, "SELECT * FROM users ORDER BY created_at DESC"); err != nil {
+func (r *Repository) GetAllUsers() ([]UserWithRole, error) {
+	var users []UserWithRole
+	if err := r.conn.Select(&users,
+		`SELECT 
+    	 	users.id,
+			users.uuid,
+			users.username,
+			users.password_hash,
+			users.first_name,
+			users.last_name,
+			users.role_id,
+			users.created_at,
+			users.updated_at,
+			user_roles.name AS role_name 
+		FROM users 
+		JOIN user_roles ON users.role_id = user_roles.id 
+		ORDER BY created_at DESC`); err != nil {
 		return nil, &repo_errors.InternalDbError{Err: err}
 	}
 

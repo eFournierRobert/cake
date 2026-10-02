@@ -140,13 +140,7 @@ func (s *Service) GetAllUsers() ([]userHandler.UserDto, error) {
 
 	var usersDto []userHandler.UserDto
 	for _, u := range users {
-		dto, err := s.userToDto(u)
-		if err != nil {
-			log.Printf("GetAllUsers error: %s\n", fmt.Errorf("%w", err))
-			return nil, getAppErrorType(err)
-		}
-
-		usersDto = append(usersDto, dto)
+		usersDto = append(usersDto, s.userWithRoleToDto(u))
 	}
 
 	return usersDto, nil
@@ -228,6 +222,18 @@ func (s *Service) userCreateDtoToUser(user userHandler.UserCreate, hashedPasswor
 		UpdatedAt:    time.Time{},
 		RoleId:       role.Id,
 	}, nil
+}
+
+func (s *Service) userWithRoleToDto(user userRepo.UserWithRole) userHandler.UserDto {
+	return userHandler.UserDto{
+		Uuid:        user.User.Uuid,
+		Username:    user.User.Username,
+		Role:        user.RoleName,
+		FirstName:   user.User.FirstName,
+		LastName:    user.User.LastName,
+		LastUpdated: user.User.UpdatedAt,
+		CreatedAt:   user.User.CreatedAt,
+	}
 }
 
 func (s *Service) userToDto(user userRepo.User) (userHandler.UserDto, error) {
