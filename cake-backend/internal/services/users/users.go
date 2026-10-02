@@ -96,6 +96,27 @@ func (s *Service) ChangePassword(currentUserUuid string, newPassword string) err
 	return nil
 }
 
+func (s *Service) GetAllUsers() ([]userHandler.UserDto, error) {
+	users, err := s.repo.GetAllUsers()
+	if err != nil {
+		log.Printf("GetAllUsers error: %s\n", fmt.Errorf("%w", err))
+		return nil, getAppErrorType(err)
+	}
+
+	var usersDto []userHandler.UserDto
+	for _, u := range users {
+		dto, err := s.userToDto(u)
+		if err != nil {
+			log.Printf("GetAllUsers error: %s\n", fmt.Errorf("%w", err))
+			return nil, getAppErrorType(err)
+		}
+
+		usersDto = append(usersDto, dto)
+	}
+
+	return usersDto, nil
+}
+
 func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
 	realUuid, err := uuid.Parse(strUuid)
 	if err != nil {
