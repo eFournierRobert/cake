@@ -150,6 +150,19 @@ func (s *Service) CreateUser(userCreateDto userHandler.UserCreate) (userHandler.
 	return userDto, nil
 }
 
+func (s *Service) DeleteUser(userUuid string) error {
+	realUuid, err := uuid.Parse(userUuid)
+	if err != nil {
+		return getAppErrorType(err)
+	}
+
+	err = s.repo.DeleteUser(realUuid)
+	if err != nil {
+		return getAppErrorType(err)
+	}
+	return nil
+}
+
 func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
 	realUuid, err := uuid.Parse(strUuid)
 	if err != nil {
