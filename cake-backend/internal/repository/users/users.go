@@ -47,43 +47,46 @@ func (r *Repository) GetUser(uuid uuid.UUID) (User, error) {
 	return user, nil
 }
 
-// UpdateUser updates a user by uuid and returns
-// *repo_errors.UserNotFound if no user matches.
-func (r *Repository) UpdateUser(user User) error {
+// UpdateUser updates a user by uuid and returns the updated user as
+// stored in the database, or *repo_errors.UserNotFound if no user
+// matches.
+func (r *Repository) UpdateUser(user User) (User, error) {
 	user.UpdatedAt = time.Now()
-	results, err := r.conn.NamedExec("UPDATE users SET first_name = :FirstName, last_name = :LastName, username = :Username, password_hash = :PasswordHash, role_id = :RoleId, updated_at = :UpdatedAt WHERE uuid = :Uuid", user)
+	results, err := r.conn.NamedExec("UPDATE users SET first_name = :first_name, last_name = :last_name, username = :username, password_hash = :password_hash, role_id = :role_id, updated_at = :updated_at WHERE uuid = :uuid", user)
 	if err != nil {
-		return &repo_errors.InternalDbError{Err: err}
+		return User{}, &repo_errors.InternalDbError{Err: err}
 	}
 
 	rowsAffected, err := results.RowsAffected()
 	if err != nil {
-		return &repo_errors.InternalDbError{Err: err}
+		return User{}, &repo_errors.InternalDbError{Err: err}
 	}
 
 	if rowsAffected == 0 {
-		return &repo_errors.UserNotFound{}
+		return User{}, &repo_errors.UserNotFound{}
 	}
 
-	return nil
+	return r.GetUser(uuid.MustParse(user.Uuid))
 }
 
-// CreateUser inserts a user, filling in the timestamps. It returns
-// *repo_errors.UserAlreadyExists if the username is already taken.
-func (r *Repository) CreateUser(user User) error {
+// CreateUser inserts a user, filling in the timestamps, and returns
+// the created user as stored in the database, including its
+// auto-generated id. It returns *repo_errors.UserAlreadyExists if
+// the username is already taken.
+func (r *Repository) CreateUser(user User) (User, error) {
 	user.CreatedAt = time.Now()
 	user.UpdatedAt = time.Now()
 
-	_, err := r.conn.NamedExec("INSERT INTO users (uuid, username, password_hash, first_name, last_name, created_at, updated_at, role_id) VALUES (:Uuid, :Username, :PasswordHash, :FirstName, :LastName, :CreatedAt, :UpdatedAt, :RoleId)", user)
+	_, err := r.conn.NamedExec("INSERT INTO users (uuid, username, password_hash, first_name, last_name, created_at, updated_at, role_id) VALUES (:uuid, :username, :password_hash, :first_name, :last_name, :created_at, :updated_at, :role_id)", user)
 	if err != nil {
 		var mySQLError *mysql.MySQLError
 		if errors.As(err, &mySQLError) && mySQLError.Number == 1062 {
-			return &repo_errors.UserAlreadyExists{}
+			return User{}, &repo_errors.UserAlreadyExists{}
 		}
-		return &repo_errors.InternalDbError{Err: err}
+		return User{}, &repo_errors.InternalDbError{Err: err}
 	}
 
-	return nil
+	return r.GetUser(uuid.MustParse(user.Uuid))
 }
 
 // DeleteUser removes the user with the given uuid and, by
