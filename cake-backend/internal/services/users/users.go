@@ -69,6 +69,39 @@ func (s *Service) ModifyUser(currentUserUuid string, userUpdate userHandler.User
 	return userDto, nil
 }
 
+func (s *Service) AdminModifyUser(userUuid string, userUpdate userHandler.AdminUserUpdate) (userHandler.UserDto, error) {
+	user, err := s.getUserFromStrUuid(userUuid)
+	if err != nil {
+		log.Printf("AdminModifyUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	role, err := s.roleRepo.GetRoleByName(userUpdate.Role)
+	if err != nil {
+		log.Printf("AdminModifyUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	user.FirstName = userUpdate.FirstName
+	user.LastName = userUpdate.LastName
+	user.Username = userUpdate.Username
+	user.RoleId = role.Id
+
+	user, err = s.repo.UpdateUser(user)
+	if err != nil {
+		log.Printf("AdminModifyUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	userDto, err := s.userToDto(user)
+	if err != nil {
+		log.Printf("AdminModifyUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	return userDto, nil
+}
+
 func (s *Service) ChangePassword(currentUserUuid string, newPassword string) error {
 	if !isPasswordGoodLength(newPassword) {
 		return handler_errors.ErrInvalidPassword
