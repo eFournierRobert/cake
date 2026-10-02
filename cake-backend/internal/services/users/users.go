@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 	"uuid"
 
 	"github.com/jmoiron/sqlx"
@@ -117,6 +118,38 @@ func (s *Service) GetAllUsers() ([]userHandler.UserDto, error) {
 	return usersDto, nil
 }
 
+func (s *Service) CreateUser(userCreateDto userHandler.UserCreate) (userHandler.UserDto, error) {
+	if !isPasswordGoodLength(userCreateDto.Password) {
+		return userHandler.UserDto{}, handler_errors.ErrInvalidPassword
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(userCreateDto.Password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("CreateUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	user, err := s.userCreateDtoToUser(userCreateDto, newHash)
+	if err != nil {
+		log.Printf("CreateUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	user, err = s.repo.CreateUser(user)
+	if err != nil {
+		log.Printf("CreateUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	userDto, err := s.userToDto(user)
+	if err != nil {
+		log.Printf("CreateUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	return userDto, nil
+}
+
 func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
 	realUuid, err := uuid.Parse(strUuid)
 	if err != nil {
@@ -131,8 +164,27 @@ func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
 	return user, nil
 }
 
+func (s *Service) userCreateDtoToUser(user userHandler.UserCreate, hashedPassword []byte) (userRepo.User, error) {
+	role, err := s.roleRepo.GetRoleByName(user.Role)
+	if err != nil {
+		return userRepo.User{}, err
+	}
+
+	return userRepo.User{
+		Id:           0,
+		Uuid:         uuid.NewV4().String(),
+		Username:     user.Username,
+		PasswordHash: hashedPassword,
+		FirstName:    user.FirstName,
+		LastName:     user.LastName,
+		CreatedAt:    time.Time{},
+		UpdatedAt:    time.Time{},
+		RoleId:       role.Id,
+	}, nil
+}
+
 func (s *Service) userToDto(user userRepo.User) (userHandler.UserDto, error) {
-	role, err := s.roleRepo.GetUserRole(user)
+	role, err := s.roleRepo.GetRoleById(user.RoleId)
 	if err != nil {
 		return userHandler.UserDto{}, err
 	}
@@ -151,6 +203,9 @@ func (s *Service) userToDto(user userRepo.User) (userHandler.UserDto, error) {
 func getAppErrorType(err error) error {
 	if errors.Is(err, &repo_errors.UserNotFound{}) {
 		return handler_errors.ErrUserDoesNotExist
+	}
+	if errors.Is(err, &repo_errors.UserAlreadyExists{}) {
+		return handler_errors.ErrResourceConflict
 	}
 
 	return handler_errors.ErrUnexpectedError

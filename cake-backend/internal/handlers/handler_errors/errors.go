@@ -33,4 +33,10 @@ var (
 		Message:    "The provided password is invalid",
 		HttpStatus: http.StatusBadRequest,
 	}
+
+	ErrResourceConflict = AppError{
+		Code:       "invalid_request",
+		Message:    "The provided resource conflicts with an existing one",
+		HttpStatus: http.StatusConflict,
+	}
 )
