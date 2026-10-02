@@ -26,13 +26,7 @@ func New(db *sqlx.DB) *Service {
 }
 
 func (s *Service) GetUser(strUuid string) (userHandler.UserDto, error) {
-	realUuid, err := uuid.Parse(strUuid)
-	if err != nil {
-		log.Printf("GetUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
-	}
-
-	user, err := s.repo.GetUser(realUuid)
+	user, err := s.getUserFromStrUuid(strUuid)
 	if err != nil {
 		log.Printf("GetUser error: %s\n", fmt.Errorf("%w", err))
 		return userHandler.UserDto{}, getAppErrorType(err)
@@ -45,6 +39,46 @@ func (s *Service) GetUser(strUuid string) (userHandler.UserDto, error) {
 	}
 
 	return userDto, nil
+}
+
+func (s *Service) ModifyUser(currentUserUuid string, userUpdate userHandler.UserUpdate) (userHandler.UserDto, error) {
+	user, err := s.getUserFromStrUuid(currentUserUuid)
+	if err != nil {
+		log.Printf("ModifyUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	user.FirstName = userUpdate.FirstName
+	user.LastName = userUpdate.LastName
+	user.Username = userUpdate.Username
+
+	user, err = s.repo.UpdateUser(user)
+	if err != nil {
+		log.Printf("ModifyUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	userDto, err := s.userToDto(user)
+	if err != nil {
+		log.Printf("ModifyUser error: %s\n", fmt.Errorf("%w", err))
+		return userHandler.UserDto{}, getAppErrorType(err)
+	}
+
+	return userDto, nil
+}
+
+func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
+	realUuid, err := uuid.Parse(strUuid)
+	if err != nil {
+		return userRepo.User{}, err
+	}
+
+	user, err := s.repo.GetUser(realUuid)
+	if err != nil {
+		return userRepo.User{}, err
+	}
+
+	return user, nil
 }
 
 func (s *Service) userToDto(user userRepo.User) (userHandler.UserDto, error) {
