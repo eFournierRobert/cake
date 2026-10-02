@@ -19,12 +19,12 @@
 
 - **Migrations run automatically at server startup.** `repository.NewDbConnection` calls `goose.Up(db.DB, "migrations")` with a *relative* path — the server must be started from `cake-backend/` or migrations are not found. There is no separate migrate command.
 - The code targets the **goose v2 API** (`goose v2.7.0+incompatible`: `goose.SetDialect` / `goose.Up`). Do not upgrade to goose v3 without porting these calls.
-- **MySQL driver placeholders:** use sqlx named params (`:Name`) or `?`. `users.GetUser` / `users.DeleteUser` use Postgres-style `$1`, which will fail at runtime against the mysql driver — known bug; don't copy that pattern into new code.
+- **MySQL driver placeholders:** use sqlx named params (`:name`) or `?`.
 - The initial migration seeds `user_roles` (uuid `15afe83a-fd92-4d66-8f22-5a3bedbb53e1` = `user`, `5a18559d-9d20-4251-8a72-b36efbaff514` = `admin`) and `message_roles` via inline `INSERT` statements. Follow this pattern for seed data instead of seeding from app code.
 
 ## Verification
 
-- No tests exist yet (zero `_test.go` files); there is no CI, Makefile, linter config, or codegen. Verify with `go build ./...` and `go vet ./...` from `cake-backend/`.
+- Verify with `go build ./...` and `go vet ./...` from `cake-backend/`. Also run tests to make sure everything is working correctly.
 
 ## Conventions
 
