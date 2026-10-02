@@ -23,7 +23,8 @@ type Service struct {
 
 func New(db *sqlx.DB) *Service {
 	return &Service{
-		repo: userRepo.New(db),
+		repo:     userRepo.New(db),
+		roleRepo: roles.New(db),
 	}
 }
 
@@ -258,5 +259,5 @@ func getAppErrorType(err error) error {
 }
 
 func isPasswordGoodLength(password string) bool {
-	return len(password) >= 12 && len(password) <= 128
+	return len(password) >= 12 && len(password) <= 72
 }
