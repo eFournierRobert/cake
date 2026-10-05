@@ -12,7 +12,7 @@ import (
 
 type contextKey string
 
-const userUuidKey contextKey = "userUuid"
+const UserUuidKey contextKey = "userUuid"
 
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +29,7 @@ func RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), userUuidKey, userUuid)
+		ctx := context.WithValue(r.Context(), UserUuidKey, userUuid)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -56,7 +56,7 @@ func RequireAdminAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), userUuidKey, userUuid)
+		ctx := context.WithValue(r.Context(), UserUuidKey, userUuid)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
