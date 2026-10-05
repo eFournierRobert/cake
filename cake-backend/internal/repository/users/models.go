@@ -1,6 +1,8 @@
 package users
 
-import "time"
+import (
+	"time"
+)
 
 // User is a row of the users table.
 type User struct {
@@ -13,4 +15,9 @@ type User struct {
 	CreatedAt    time.Time `db:"created_at"`
 	UpdatedAt    time.Time `db:"updated_at"`
 	RoleId       int       `db:"role_id"`
+}
+
+type UserWithRole struct {
+	User
+	RoleName string `db:"role_name"`
 }

@@ -265,7 +265,7 @@ func TestGetAllUsersOrdering(t *testing.T) {
 
 	firstIndex, secondIndex := -1, -1
 	for i, u := range all {
-		switch u.Uuid {
+		switch u.User.Uuid {
 		case first.Uuid:
 			firstIndex = i
 		case second.Uuid:
