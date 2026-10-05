@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-	"time"
 	"uuid"
 
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
@@ -237,8 +236,6 @@ func TestModifyUser(t *testing.T) {
 	t.Run("updates every provided field", func(t *testing.T) {
 		user := makeUser(t, prefixModify+"ada", "user", "Ada", "Lovelace", testPassword)
 		t.Cleanup(func() { deleteUsers(t, user) })
-
-		time.Sleep(1100 * time.Millisecond)
 
 		dto, err := svc.ModifyUser(user.Uuid, userHandler.UserUpdate{
 			FirstName: "Augusta",
