@@ -5,10 +5,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
 	log.Println("Starting cake...")
+
+	if len(os.Getenv("JWT_SECRET")) == 0 {
+		log.Fatalln("No JWT secret in $JWT_SECRET")
+	}
 
 	db, err := repository.NewDbConnection()
 	if err != nil {
