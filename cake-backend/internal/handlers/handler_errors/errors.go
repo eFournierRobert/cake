@@ -28,6 +28,12 @@ var (
 		HttpStatus: http.StatusNotFound,
 	}
 
+	ErrRoleNotFound = AppError{
+		Code:       "role_not_found",
+		Message:    "The requested role does not exist",
+		HttpStatus: http.StatusNotFound,
+	}
+
 	ErrInvalidPassword = AppError{
 		Code:       "invalid_password",
 		Message:    "The provided password is invalid",
@@ -41,7 +47,7 @@ var (
 	}
 
 	ErrResourceConflict = AppError{
-		Code:       "invalid_request",
+		Code:       "resource_conflict",
 		Message:    "The provided resource conflicts with an existing one",
 		HttpStatus: http.StatusConflict,
 	}

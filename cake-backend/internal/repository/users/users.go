@@ -39,7 +39,7 @@ func (r *Repository) GetAllUsers() ([]UserWithRole, error) {
 			user_roles.name AS role_name 
 		FROM users 
 		JOIN user_roles ON users.role_id = user_roles.id 
-		ORDER BY created_at DESC`); err != nil {
+		ORDER BY users.created_at DESC`); err != nil {
 		return nil, &repo_errors.InternalDbError{Err: err}
 	}
 
@@ -68,7 +68,7 @@ func (r *Repository) GetUser(uuid uuid.UUID) (User, error) {
 // matches.
 func (r *Repository) UpdateUser(user User) (User, error) {
 	user.UpdatedAt = time.Now()
-	results, err := r.conn.NamedExec(
+	_, err := r.conn.NamedExec(
 		`UPDATE users 
 			SET first_name = :first_name, 
 			    last_name = :last_name, 
@@ -79,16 +79,11 @@ func (r *Repository) UpdateUser(user User) (User, error) {
 			WHERE uuid = :uuid`,
 		user)
 	if err != nil {
+		var mySQLError *mysql.MySQLError
+		if errors.As(err, &mySQLError) && mySQLError.Number == 1062 {
+			return User{}, &repo_errors.UserAlreadyExists{}
+		}
 		return User{}, &repo_errors.InternalDbError{Err: err}
-	}
-
-	rowsAffected, err := results.RowsAffected()
-	if err != nil {
-		return User{}, &repo_errors.InternalDbError{Err: err}
-	}
-
-	if rowsAffected == 0 {
-		return User{}, &repo_errors.UserNotFound{}
 	}
 
 	return r.GetUser(uuid.MustParse(user.Uuid))

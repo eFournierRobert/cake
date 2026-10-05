@@ -34,8 +34,7 @@ func New(db *sqlx.DB) *Service {
 func (s *Service) GetUser(strUuid string) (userHandler.UserDto, error) {
 	user, err := s.getUserFromStrUuid(strUuid)
 	if err != nil {
-		log.Printf("GetUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return userHandler.UserDto{}, err
 	}
 
 	userDto, err := s.userToDto(user)
@@ -50,19 +49,20 @@ func (s *Service) GetUser(strUuid string) (userHandler.UserDto, error) {
 // ModifyUser lets the identified user update their own first name, last
 // name and username, and returns the updated user as a UserDto.
 func (s *Service) ModifyUser(currentUserUuid string, userUpdate userHandler.UserUpdate) (userHandler.UserDto, error) {
-	if len(userUpdate.FirstName) == 0 || len(userUpdate.LastName) == 0 || len(userUpdate.Username) == 0 {
-		return userHandler.UserDto{}, handler_errors.ErrInvalidRequest
-	}
-
 	user, err := s.getUserFromStrUuid(currentUserUuid)
 	if err != nil {
-		log.Printf("ModifyUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return userHandler.UserDto{}, err
 	}
 
-	user.FirstName = userUpdate.FirstName
-	user.LastName = userUpdate.LastName
-	user.Username = userUpdate.Username
+	if len(userUpdate.FirstName) > 0 {
+		user.FirstName = userUpdate.FirstName
+	}
+	if len(userUpdate.LastName) > 0 {
+		user.LastName = userUpdate.LastName
+	}
+	if len(userUpdate.Username) > 0 {
+		user.Username = userUpdate.Username
+	}
 
 	user, err = s.repo.UpdateUser(user)
 	if err != nil {
@@ -84,20 +84,28 @@ func (s *Service) ModifyUser(currentUserUuid string, userUpdate userHandler.User
 func (s *Service) AdminModifyUser(userUuid string, userUpdate userHandler.AdminUserUpdate) (userHandler.UserDto, error) {
 	user, err := s.getUserFromStrUuid(userUuid)
 	if err != nil {
-		log.Printf("AdminModifyUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return userHandler.UserDto{}, err
 	}
 
-	role, err := s.roleRepo.GetRoleByName(userUpdate.Role)
-	if err != nil {
-		log.Printf("AdminModifyUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+	if len(userUpdate.Role) > 0 {
+		role, err := s.roleRepo.GetRoleByName(userUpdate.Role)
+		if err != nil {
+			log.Printf("AdminModifyUser error: %s\n", fmt.Errorf("%w", err))
+			return userHandler.UserDto{}, getAppErrorType(err)
+		}
+
+		user.RoleId = role.Id
 	}
 
-	user.FirstName = userUpdate.FirstName
-	user.LastName = userUpdate.LastName
-	user.Username = userUpdate.Username
-	user.RoleId = role.Id
+	if len(userUpdate.FirstName) > 0 {
+		user.FirstName = userUpdate.FirstName
+	}
+	if len(userUpdate.LastName) > 0 {
+		user.LastName = userUpdate.LastName
+	}
+	if len(userUpdate.Username) > 0 {
+		user.Username = userUpdate.Username
+	}
 
 	user, err = s.repo.UpdateUser(user)
 	if err != nil {
@@ -123,8 +131,7 @@ func (s *Service) ChangePassword(currentUserUuid string, newPassword string) err
 
 	user, err := s.getUserFromStrUuid(currentUserUuid)
 	if err != nil {
-		log.Printf("ChangePassword error: %s\n", fmt.Errorf("%w", err))
-		return getAppErrorType(err)
+		return err
 	}
 
 	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
@@ -197,7 +204,7 @@ func (s *Service) CreateUser(userCreateDto userHandler.UserCreate) (userHandler.
 func (s *Service) DeleteUser(userUuid string) error {
 	realUuid, err := uuid.Parse(userUuid)
 	if err != nil {
-		return getAppErrorType(err)
+		return handler_errors.ErrInvalidRequest
 	}
 
 	err = s.repo.DeleteUser(realUuid)
@@ -210,12 +217,14 @@ func (s *Service) DeleteUser(userUuid string) error {
 func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
 	realUuid, err := uuid.Parse(strUuid)
 	if err != nil {
-		return userRepo.User{}, err
+		log.Printf("getUserFromStrUuid error: %s\n", fmt.Errorf("%w", err))
+		return userRepo.User{}, handler_errors.ErrInvalidRequest
 	}
 
 	user, err := s.repo.GetUser(realUuid)
 	if err != nil {
-		return userRepo.User{}, err
+		log.Printf("getUserFromStrUuid error: %s\n", fmt.Errorf("%w", err))
+		return userRepo.User{}, getAppErrorType(err)
 	}
 
 	return user, nil
@@ -275,6 +284,9 @@ func getAppErrorType(err error) error {
 	}
 	if errors.Is(err, &repo_errors.UserAlreadyExists{}) {
 		return handler_errors.ErrResourceConflict
+	}
+	if errors.Is(err, &repo_errors.RoleNotFound{}) {
+		return handler_errors.ErrRoleNotFound
 	}
 
 	return handler_errors.ErrUnexpectedError
