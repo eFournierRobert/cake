@@ -4,8 +4,8 @@ CREATE TABLE spaces (
     uuid CHAR(36) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     system_prompt TEXT,
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    updated_at DATETIME(6) NOT NULL,
     owner_id INT NOT NULL,
 
     CONSTRAINT PK_spaces PRIMARY KEY (id),

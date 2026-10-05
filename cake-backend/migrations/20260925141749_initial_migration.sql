@@ -14,8 +14,8 @@ CREATE TABLE users (
     password_hash BLOB NOT NULL,
     first_name VARCHAR(255),
     last_name VARCHAR(255),
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    updated_at DATETIME(6) NOT NULL,
     role_id INT NOT NULL,
 
     CONSTRAINT PK_users PRIMARY KEY (id),
@@ -27,7 +27,7 @@ CREATE TABLE conversations (
     uuid CHAR(36) NOT NULL UNIQUE,
     owner_id INT NOT NULL,
     title VARCHAR(255),
-    created_at DATETIME NOT NULL,
+    created_at DATETIME(6) NOT NULL,
 
     CONSTRAINT PK_conversations PRIMARY KEY (id),
     CONSTRAINT FK_users_owner FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
@@ -44,7 +44,7 @@ CREATE TABLE messages (
     id INT AUTO_INCREMENT,
     uuid CHAR(36) NOT NULL UNIQUE,
     content TEXT NOT NULL,
-    created_at DATETIME NOT NULL,
+    created_at DATETIME(6) NOT NULL,
     conversation_id INT NOT NULL,
     role_id INT NOT NULL,
 
