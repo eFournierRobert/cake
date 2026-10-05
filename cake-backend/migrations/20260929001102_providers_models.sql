@@ -5,8 +5,8 @@ CREATE TABLE providers (
     name VARCHAR(255) NOT NULL,
     base_url VARCHAR(512) NOT NULL,
     api_key BLOB,
-    created_at DATETIME NOT NULL,
-    updated_at DATETIME NOT NULL,
+    created_at DATETIME(6) NOT NULL,
+    updated_at DATETIME(6) NOT NULL,
 
     CONSTRAINT PK_providers PRIMARY KEY (id)
 );
@@ -19,7 +19,7 @@ CREATE TABLE models (
     context_length INT UNSIGNED NOT NULL,
     provider_model_id VARCHAR(255) NOT NULL,
     provider_id INT NOT NULL,
-    created_at DATETIME NOT NULL,
+    created_at DATETIME(6) NOT NULL,
     activated boolean NOT NULL DEFAULT FALSE,
 
     CONSTRAINT PK_models PRIMARY KEY (id),
