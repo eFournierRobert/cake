@@ -2,8 +2,8 @@
 package users
 
 import (
+	"efournierrobert/cake-backend/internal/handlers"
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
-	userHandler "efournierrobert/cake-backend/internal/handlers/users"
 	"efournierrobert/cake-backend/internal/repository/repo_errors"
 	"efournierrobert/cake-backend/internal/repository/roles"
 	userRepo "efournierrobert/cake-backend/internal/repository/users"
@@ -31,16 +31,16 @@ func New(db *sqlx.DB) *Service {
 
 // GetUser returns the user with the given uuid as a UserDto. It returns
 // handler_errors.ErrUserDoesNotExist when no user matches.
-func (s *Service) GetUser(strUuid string) (userHandler.UserDto, error) {
+func (s *Service) GetUser(strUuid string) (handlers.UserDto, error) {
 	user, err := s.getUserFromStrUuid(strUuid)
 	if err != nil {
-		return userHandler.UserDto{}, err
+		return handlers.UserDto{}, err
 	}
 
 	userDto, err := s.userToDto(user)
 	if err != nil {
 		log.Printf("GetUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return handlers.UserDto{}, getAppErrorType(err)
 	}
 
 	return userDto, nil
@@ -48,10 +48,10 @@ func (s *Service) GetUser(strUuid string) (userHandler.UserDto, error) {
 
 // ModifyUser lets the identified user update their own first name, last
 // name and username, and returns the updated user as a UserDto.
-func (s *Service) ModifyUser(currentUserUuid string, userUpdate userHandler.UserUpdate) (userHandler.UserDto, error) {
+func (s *Service) ModifyUser(currentUserUuid string, userUpdate handlers.UserUpdate) (handlers.UserDto, error) {
 	user, err := s.getUserFromStrUuid(currentUserUuid)
 	if err != nil {
-		return userHandler.UserDto{}, err
+		return handlers.UserDto{}, err
 	}
 
 	if len(userUpdate.FirstName) > 0 {
@@ -67,13 +67,13 @@ func (s *Service) ModifyUser(currentUserUuid string, userUpdate userHandler.User
 	user, err = s.repo.UpdateUser(user)
 	if err != nil {
 		log.Printf("ModifyUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return handlers.UserDto{}, getAppErrorType(err)
 	}
 
 	userDto, err := s.userToDto(user)
 	if err != nil {
 		log.Printf("ModifyUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return handlers.UserDto{}, getAppErrorType(err)
 	}
 
 	return userDto, nil
@@ -81,17 +81,17 @@ func (s *Service) ModifyUser(currentUserUuid string, userUpdate userHandler.User
 
 // AdminModifyUser is the admin variant of ModifyUser for any user
 // identified by uuid: it also changes the user's role.
-func (s *Service) AdminModifyUser(userUuid string, userUpdate userHandler.AdminUserUpdate) (userHandler.UserDto, error) {
+func (s *Service) AdminModifyUser(userUuid string, userUpdate handlers.AdminUserUpdate) (handlers.UserDto, error) {
 	user, err := s.getUserFromStrUuid(userUuid)
 	if err != nil {
-		return userHandler.UserDto{}, err
+		return handlers.UserDto{}, err
 	}
 
 	if len(userUpdate.Role) > 0 {
 		role, err := s.roleRepo.GetRoleByName(userUpdate.Role)
 		if err != nil {
 			log.Printf("AdminModifyUser error: %s\n", fmt.Errorf("%w", err))
-			return userHandler.UserDto{}, getAppErrorType(err)
+			return handlers.UserDto{}, getAppErrorType(err)
 		}
 
 		user.RoleId = role.Id
@@ -110,13 +110,13 @@ func (s *Service) AdminModifyUser(userUuid string, userUpdate userHandler.AdminU
 	user, err = s.repo.UpdateUser(user)
 	if err != nil {
 		log.Printf("AdminModifyUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return handlers.UserDto{}, getAppErrorType(err)
 	}
 
 	userDto, err := s.userToDto(user)
 	if err != nil {
 		log.Printf("AdminModifyUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return handlers.UserDto{}, getAppErrorType(err)
 	}
 
 	return userDto, nil
@@ -152,14 +152,14 @@ func (s *Service) ChangePassword(currentUserUuid string, newPassword string) err
 }
 
 // GetAllUsers returns every user as a UserDto, newest first.
-func (s *Service) GetAllUsers() ([]userHandler.UserDto, error) {
+func (s *Service) GetAllUsers() ([]handlers.UserDto, error) {
 	users, err := s.repo.GetAllUsers()
 	if err != nil {
 		log.Printf("GetAllUsers error: %s\n", fmt.Errorf("%w", err))
 		return nil, getAppErrorType(err)
 	}
 
-	var usersDto []userHandler.UserDto
+	var usersDto []handlers.UserDto
 	for _, u := range users {
 		usersDto = append(usersDto, s.userWithRoleToDto(u))
 	}
@@ -168,33 +168,33 @@ func (s *Service) GetAllUsers() ([]userHandler.UserDto, error) {
 }
 
 // CreateUser creates a user from a UserCreate request.
-func (s *Service) CreateUser(userCreateDto userHandler.UserCreate) (userHandler.UserDto, error) {
+func (s *Service) CreateUser(userCreateDto handlers.UserCreate) (handlers.UserDto, error) {
 	if !isPasswordGoodLength(userCreateDto.Password) {
-		return userHandler.UserDto{}, handler_errors.ErrInvalidPassword
+		return handlers.UserDto{}, handler_errors.ErrInvalidPassword
 	}
 
 	newHash, err := bcrypt.GenerateFromPassword([]byte(userCreateDto.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Printf("CreateUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return handlers.UserDto{}, getAppErrorType(err)
 	}
 
 	user, err := s.userCreateDtoToUser(userCreateDto, newHash)
 	if err != nil {
 		log.Printf("CreateUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return handlers.UserDto{}, getAppErrorType(err)
 	}
 
 	user, err = s.repo.CreateUser(user)
 	if err != nil {
 		log.Printf("CreateUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return handlers.UserDto{}, getAppErrorType(err)
 	}
 
 	userDto, err := s.userToDto(user)
 	if err != nil {
 		log.Printf("CreateUser error: %s\n", fmt.Errorf("%w", err))
-		return userHandler.UserDto{}, getAppErrorType(err)
+		return handlers.UserDto{}, getAppErrorType(err)
 	}
 
 	return userDto, nil
@@ -230,7 +230,7 @@ func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
 	return user, nil
 }
 
-func (s *Service) userCreateDtoToUser(user userHandler.UserCreate, hashedPassword []byte) (userRepo.User, error) {
+func (s *Service) userCreateDtoToUser(user handlers.UserCreate, hashedPassword []byte) (userRepo.User, error) {
 	role, err := s.roleRepo.GetRoleByName(user.Role)
 	if err != nil {
 		return userRepo.User{}, err
@@ -249,8 +249,8 @@ func (s *Service) userCreateDtoToUser(user userHandler.UserCreate, hashedPasswor
 	}, nil
 }
 
-func (s *Service) userWithRoleToDto(user userRepo.UserWithRole) userHandler.UserDto {
-	return userHandler.UserDto{
+func (s *Service) userWithRoleToDto(user userRepo.UserWithRole) handlers.UserDto {
+	return handlers.UserDto{
 		Uuid:        user.User.Uuid,
 		Username:    user.User.Username,
 		Role:        user.RoleName,
@@ -261,13 +261,13 @@ func (s *Service) userWithRoleToDto(user userRepo.UserWithRole) userHandler.User
 	}
 }
 
-func (s *Service) userToDto(user userRepo.User) (userHandler.UserDto, error) {
+func (s *Service) userToDto(user userRepo.User) (handlers.UserDto, error) {
 	role, err := s.roleRepo.GetRoleById(user.RoleId)
 	if err != nil {
-		return userHandler.UserDto{}, err
+		return handlers.UserDto{}, err
 	}
 
-	return userHandler.UserDto{
+	return handlers.UserDto{
 		Uuid:        user.Uuid,
 		Username:    user.Username,
 		Role:        role.Name,

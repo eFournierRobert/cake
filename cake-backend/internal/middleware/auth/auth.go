@@ -14,7 +14,7 @@ type contextKey string
 
 const UserUuidKey contextKey = "userUuid"
 
-func RequireAuth(next http.Handler) http.Handler {
+func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getAndValidateJwt(w, r)
 		if err != nil {
@@ -35,7 +35,7 @@ func RequireAuth(next http.Handler) http.Handler {
 	})
 }
 
-func RequireAdminAuth(next http.Handler) http.Handler {
+func RequireAdminAuth(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getAndValidateJwt(w, r)
 		if err != nil {
