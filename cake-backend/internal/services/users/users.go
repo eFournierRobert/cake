@@ -1,3 +1,4 @@
+// Package users implements the business logic behind the API Users operations.
 package users
 
 import (
@@ -28,6 +29,8 @@ func New(db *sqlx.DB) *Service {
 	}
 }
 
+// GetUser returns the user with the given uuid as a UserDto. It returns
+// handler_errors.ErrUserDoesNotExist when no user matches.
 func (s *Service) GetUser(strUuid string) (userHandler.UserDto, error) {
 	user, err := s.getUserFromStrUuid(strUuid)
 	if err != nil {
@@ -44,7 +47,13 @@ func (s *Service) GetUser(strUuid string) (userHandler.UserDto, error) {
 	return userDto, nil
 }
 
+// ModifyUser lets the identified user update their own first name, last
+// name and username, and returns the updated user as a UserDto.
 func (s *Service) ModifyUser(currentUserUuid string, userUpdate userHandler.UserUpdate) (userHandler.UserDto, error) {
+	if len(userUpdate.FirstName) == 0 || len(userUpdate.LastName) == 0 || len(userUpdate.Username) == 0 {
+		return userHandler.UserDto{}, handler_errors.ErrInvalidRequest
+	}
+
 	user, err := s.getUserFromStrUuid(currentUserUuid)
 	if err != nil {
 		log.Printf("ModifyUser error: %s\n", fmt.Errorf("%w", err))
@@ -70,6 +79,8 @@ func (s *Service) ModifyUser(currentUserUuid string, userUpdate userHandler.User
 	return userDto, nil
 }
 
+// AdminModifyUser is the admin variant of ModifyUser for any user
+// identified by uuid: it also changes the user's role.
 func (s *Service) AdminModifyUser(userUuid string, userUpdate userHandler.AdminUserUpdate) (userHandler.UserDto, error) {
 	user, err := s.getUserFromStrUuid(userUuid)
 	if err != nil {
@@ -103,6 +114,8 @@ func (s *Service) AdminModifyUser(userUuid string, userUpdate userHandler.AdminU
 	return userDto, nil
 }
 
+// ChangePassword updates the password of the identified user. The new
+// password must be 12 to 72 characters long.
 func (s *Service) ChangePassword(currentUserUuid string, newPassword string) error {
 	if !isPasswordGoodLength(newPassword) {
 		return handler_errors.ErrInvalidPassword
@@ -131,6 +144,7 @@ func (s *Service) ChangePassword(currentUserUuid string, newPassword string) err
 	return nil
 }
 
+// GetAllUsers returns every user as a UserDto, newest first.
 func (s *Service) GetAllUsers() ([]userHandler.UserDto, error) {
 	users, err := s.repo.GetAllUsers()
 	if err != nil {
@@ -146,6 +160,7 @@ func (s *Service) GetAllUsers() ([]userHandler.UserDto, error) {
 	return usersDto, nil
 }
 
+// CreateUser creates a user from a UserCreate request.
 func (s *Service) CreateUser(userCreateDto userHandler.UserCreate) (userHandler.UserDto, error) {
 	if !isPasswordGoodLength(userCreateDto.Password) {
 		return userHandler.UserDto{}, handler_errors.ErrInvalidPassword
@@ -178,6 +193,7 @@ func (s *Service) CreateUser(userCreateDto userHandler.UserCreate) (userHandler.
 	return userDto, nil
 }
 
+// DeleteUser removes the user with the given uuid.
 func (s *Service) DeleteUser(userUuid string) error {
 	realUuid, err := uuid.Parse(userUuid)
 	if err != nil {

@@ -34,6 +34,12 @@ var (
 		HttpStatus: http.StatusBadRequest,
 	}
 
+	ErrInvalidRequest = AppError{
+		Code:       "invalid_request",
+		Message:    "The request is invalid",
+		HttpStatus: http.StatusBadRequest,
+	}
+
 	ErrResourceConflict = AppError{
 		Code:       "invalid_request",
 		Message:    "The provided resource conflicts with an existing one",

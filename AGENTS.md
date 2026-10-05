@@ -4,7 +4,9 @@
 
 - `cake-backend/` — the only code in this repo; Go module `efournierrobert/cake-backend` (go 1.27.1). Run all `go` commands from `cake-backend/`, never the repo root (root is not a module; `go build ./...` from root fails).
 - `cake-backend/cmd/main.go` — entrypoint: opens the DB, runs migrations, serves an (currently empty) HTTP mux on `:8080` (port is hardcoded).
-- `cake-backend/internal/repository/` — SQL layer via sqlx; one subpackage per domain (`users/` = repository + models), DB errors wrapped in `repo_errors`.
+- `cake-backend/internal/repository/` — SQL layer via sqlx; one subpackage per domain (`users/` = repository + models, `roles/` = read access to `user_roles`), DB errors wrapped in `repo_errors`.
+- `cake-backend/internal/services/users/` — business logic for the Users endpoints: orchestrates the users and roles repositories, hashes passwords with bcrypt, maps `repo_errors` to client-facing `handler_errors`, exposes methods per OpenAPI Users operation. Not wired into any HTTP handler yet (no handler is registered on the mux in `cmd/main.go`).
+- `cake-backend/internal/handlers/` — API-facing types: `handlers/users/` holds the request/response DTOs matching the OpenAPI schemas; `handler_errors/` holds the `AppError` values (code, client-facing message, HTTP status) that handlers return to clients.
 - `cake-backend/migrations/` — goose SQL migrations.
 - `cake-backend/doc/openapi.yaml` — the API contract (v1.0.0, self-declared provisional). Almost no endpoints are implemented yet; treat this doc as the spec to build to and keep it in sync with code.
 - `docker/docker-compose.yaml` — only infra: MariaDB, db `cake`, user `cake-user`/`cake-user`, port `3306`.
@@ -25,6 +27,7 @@
 ## Verification
 
 - Verify with `go build ./...` and `go vet ./...` from `cake-backend/`. Also run tests to make sure everything is working correctly.
+- Tests currently live only in `internal/repository/users/` and use testcontainers: `go test ./...` spins up a real MariaDB container (Docker required) and runs migrations against it.
 
 ## Conventions
 
