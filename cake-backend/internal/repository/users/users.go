@@ -157,7 +157,7 @@ func (r *Repository) GetUserCredentials(username string) (UserWithRole, error) {
     	users.uuid,
     	users.username, 
     	users.password_hash,
-    	user_roles.name,
+    	user_roles.name AS role_name
     	FROM users
     	JOIN user_roles ON users.role_id = user_roles.id
     	WHERE users.username = ?`, username)

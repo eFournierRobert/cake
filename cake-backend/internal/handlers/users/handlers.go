@@ -23,15 +23,18 @@ func New(db *sqlx.DB, router *http.ServeMux) *Handler {
 
 	router.HandleFunc("GET /user", auth.RequireAuth(h.getCurrentUser))
 	router.HandleFunc("PATCH /user", auth.RequireAuth(h.patchCurrentUser))
-	router.HandleFunc("POST /user/password", auth.RequireAuth(h.patchCurrentUser))
+	router.HandleFunc("POST /user/password", auth.RequireAuth(h.postCurrentUserPassword))
 
 	router.HandleFunc("GET /users", auth.RequireAdminAuth(h.getUsers))
 	router.HandleFunc("POST /users", auth.RequireAdminAuth(h.postUser))
 
-	router.HandleFunc("GET /users/{uuid}", auth.RequireAdminAuth(h.getUsers))
+	router.HandleFunc("GET /users/{uuid}", auth.RequireAdminAuth(h.getUser))
 	router.HandleFunc("PATCH /users/{uuid}", auth.RequireAdminAuth(h.patchUser))
 	router.HandleFunc("DELETE /users/{uuid}", auth.RequireAdminAuth(h.deleteUser))
 	router.HandleFunc("POST /users/{uuid}/password", auth.RequireAdminAuth(h.postUserPassword))
+
+	router.HandleFunc("POST /login", h.login)
+	router.HandleFunc("POST /logout", h.logout)
 
 	return &h
 }
@@ -50,6 +53,29 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	http.SetCookie(w, &http.Cookie{
+		Name:     "jwt-token",
+		Value:    tokenString,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   60 * 60,
+	})
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     "jwt-token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	})
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) getCurrentUser(w http.ResponseWriter, r *http.Request) {
@@ -67,8 +93,9 @@ func (h *Handler) getCurrentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(requestBody)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(requestBody)
 }
 
 func (h *Handler) patchCurrentUser(w http.ResponseWriter, r *http.Request) {
@@ -92,8 +119,9 @@ func (h *Handler) patchCurrentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(requestBody)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(requestBody)
 }
 
 func (h *Handler) postCurrentUserPassword(w http.ResponseWriter, r *http.Request) {
@@ -127,8 +155,9 @@ func (h *Handler) getUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(requestBody)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(requestBody)
 }
 
 func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
@@ -150,8 +179,9 @@ func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(requestBody)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(requestBody)
 }
 
 func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
@@ -169,8 +199,9 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(requestBody)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(requestBody)
 }
 
 func (h *Handler) patchUser(w http.ResponseWriter, r *http.Request) {
@@ -194,8 +225,9 @@ func (h *Handler) patchUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write(requestBody)
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	w.Write(requestBody)
 }
 
 func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request) {

@@ -303,6 +303,8 @@ func (s *Service) userToDto(user userRepo.User) (handlers.UserDto, error) {
 }
 
 func getAppErrorType(err error) error {
+	log.Println("error happened: " + err.Error())
+
 	if errors.Is(err, &repo_errors.UserNotFound{}) {
 		return handler_errors.ErrUserDoesNotExist
 	}
