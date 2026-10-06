@@ -35,6 +35,20 @@ func New(db *sqlx.DB, router *http.ServeMux) *Handler {
 	return &h
 }
 
+func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
+	var req handlers.LoginRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		handler_errors.WriteError(w, handler_errors.ErrInvalidRequest)
+		return
+	}
+
+	u, err := h.service.ModifyUser(currentUserUuid, req)
+	if err != nil {
+		handler_errors.WriteError(w, err)
+		return
+	}
+}
+
 func (h *Handler) getCurrentUser(w http.ResponseWriter, r *http.Request) {
 	currentUserUuid := r.Context().Value(auth.UserUuidKey).(string)
 

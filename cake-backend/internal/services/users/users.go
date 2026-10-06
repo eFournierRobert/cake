@@ -214,6 +214,10 @@ func (s *Service) DeleteUser(userUuid string) error {
 	return nil
 }
 
+func (s *Service) Login(username, password string) error {
+
+}
+
 func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
 	realUuid, err := uuid.Parse(strUuid)
 	if err != nil {

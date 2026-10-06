@@ -150,3 +150,8 @@ func (r *Repository) DeleteUser(uuid uuid.UUID) error {
 
 	return nil
 }
+
+func (r *Repository) AreCredentialsValid(username string, password []byte) (User, error) {
+	var user User
+	r.conn.Get(&user, `SELECT * FROM users WHERE username = ?`, username)
+}
