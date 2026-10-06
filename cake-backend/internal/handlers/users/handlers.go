@@ -6,6 +6,7 @@ import (
 	"efournierrobert/cake-backend/internal/middleware/auth"
 	userService "efournierrobert/cake-backend/internal/services/users"
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"github.com/jmoiron/sqlx"
@@ -42,11 +43,13 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.service.ModifyUser(currentUserUuid, req)
+	tokenString, err := h.service.Login(req.Username, req.Password)
 	if err != nil {
-		handler_errors.WriteError(w, err)
+		log.Println("Error on login: " + err.Error())
+		handler_errors.WriteError(w, handler_errors.ErrInvalidPassword)
 		return
 	}
+
 }
 
 func (h *Handler) getCurrentUser(w http.ResponseWriter, r *http.Request) {

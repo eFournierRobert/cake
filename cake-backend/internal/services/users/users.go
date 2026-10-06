@@ -10,9 +10,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"os"
 	"time"
 	"uuid"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jmoiron/sqlx"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -214,8 +216,26 @@ func (s *Service) DeleteUser(userUuid string) error {
 	return nil
 }
 
-func (s *Service) Login(username, password string) error {
+func (s *Service) Login(username, password string) (string, error) {
+	u, err := s.repo.GetUserCredentials(username)
+	if err != nil {
+		return "", getAppErrorType(err)
+	}
 
+	err = bcrypt.CompareHashAndPassword(u.PasswordHash, []byte(password))
+	if err != nil {
+		return "", getAppErrorType(err)
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub":  u.Uuid,
+		"role": u.RoleName,
+		"exp":  time.Now().Add(1 * time.Hour).Unix(),
+		"iat":  time.Now().Unix(),
+	})
+
+	tokenString, _ := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	return tokenString, nil
 }
 
 func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
