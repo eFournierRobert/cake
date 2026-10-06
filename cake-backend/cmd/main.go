@@ -45,7 +45,7 @@ func main() {
 
 func firstTimeSetup(db *sqlx.DB) {
 	var userCount int
-	err := db.Select(&userCount, "SELECT COUNT(*) FROM users")
+	err := db.Get(&userCount, "SELECT COUNT(*) FROM users LIMIT 1")
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -65,7 +65,7 @@ func firstTimeSetup(db *sqlx.DB) {
 	}
 
 	var roleID int
-	err = db.Get(&roleID, `SELECT id FROM user_roles WHERE name = 'admin'`)
+	err = db.Get(&roleID, `SELECT id FROM user_roles WHERE name = 'admin' LIMIT 1`)
 	if err != nil {
 		log.Fatalln(err)
 	}
