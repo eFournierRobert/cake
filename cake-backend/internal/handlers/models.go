@@ -33,9 +33,6 @@ type AdminUserUpdate struct {
 	LastName  string `json:"last_name,omitempty"`
 }
 
-// PasswordChangeRequest is the request body for POST /user/password
-// and POST /users/{uuid}/password, matching the
-// PasswordChangeRequest schema in doc/openapi.yaml.
 type PasswordChangeRequest struct {
 	Password string `json:"password"`
 }

@@ -15,7 +15,7 @@ type contextKey string
 const UserUuidKey contextKey = "userUuid"
 
 func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getAndValidateJwt(w, r)
 		if err != nil {
 			log.Println(err)
@@ -32,11 +32,11 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), UserUuidKey, userUuid)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+	}
 }
 
 func RequireAdminAuth(next http.HandlerFunc) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getAndValidateJwt(w, r)
 		if err != nil {
 			log.Println(err)
@@ -59,7 +59,7 @@ func RequireAdminAuth(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), UserUuidKey, userUuid)
 
 		next.ServeHTTP(w, r.WithContext(ctx))
-	})
+	}
 }
 
 func getAndValidateJwt(w http.ResponseWriter, r *http.Request) (jwt.MapClaims, error) {

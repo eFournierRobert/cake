@@ -1,18 +1,32 @@
 package handler_errors
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 )
 
 type AppError struct {
-	Code       string
-	Message    string
+	Code       string `json:"code"`
+	Message    string `json:"message"`
 	HttpStatus int
 }
 
 func (a AppError) Error() string {
 	return fmt.Sprintf("error %s happened: %s", a.Code, a.Message)
+}
+
+func WriteError(w http.ResponseWriter, err error) {
+	var appErr AppError
+	ok := errors.As(err, &appErr)
+	if !ok {
+		appErr = ErrUnexpectedError
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(appErr.HttpStatus)
+	_ = json.NewEncoder(w).Encode(appErr)
 }
 
 var (
