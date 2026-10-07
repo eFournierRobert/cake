@@ -49,9 +49,9 @@ var (
 	}
 
 	ErrInvalidPassword = AppError{
-		Code:       "invalid_password",
-		Message:    "The provided password is invalid",
-		HttpStatus: http.StatusBadRequest,
+		Code:       "invalid_credentials",
+		Message:    "Invalid username or password",
+		HttpStatus: http.StatusUnauthorized,
 	}
 
 	ErrInvalidRequest = AppError{
