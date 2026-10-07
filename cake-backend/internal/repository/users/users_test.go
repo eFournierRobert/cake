@@ -199,9 +199,11 @@ func TestUpdateUser(t *testing.T) {
 	_, err := repo.CreateUser(user)
 	require.NoError(t, err, "expected CreateUser to succeed")
 
-	// MariaDB rounds DATETIME values to seconds, so updated_at can only
-	// be guaranteed to move forward after at least one second.
-	time.Sleep(1100 * time.Millisecond)
+	// DATETIME(6) stores microseconds, so updated_at is guaranteed to
+	// move forward as soon as any measurable time passes; the sleep
+	// only guards against the two timestamps landing on the same
+	// microsecond.
+	time.Sleep(10 * time.Millisecond)
 
 	user.FirstName = "Augusta"
 	user.LastName = "King"
@@ -218,7 +220,7 @@ func TestUpdateUser(t *testing.T) {
 	assert.Equal(t, user.RoleId, updated.RoleId, "expected role id %d to be persisted", user.RoleId)
 	assert.False(t, updated.UpdatedAt.Before(updated.CreatedAt),
 		"expected updated_at (%v) to be after created_at (%v)", updated.UpdatedAt, updated.CreatedAt)
-	assert.NotEqual(t, updated.CreatedAt.Unix(), updated.UpdatedAt.Unix(),
+	assert.NotEqual(t, updated.CreatedAt.UnixMicro(), updated.UpdatedAt.UnixMicro(),
 		"expected updated_at (%v) to differ from created_at (%v)", updated.UpdatedAt, updated.CreatedAt)
 
 	_, err = repo.UpdateUser(makeUser(t, "ghost-user", "Nope", "Nope"))
@@ -263,13 +265,11 @@ func TestDeleteUserCascadesConversations(t *testing.T) {
 func TestGetAllUsersOrdering(t *testing.T) {
 	repo := New(testDB)
 	first := makeUser(t, "oldest-user", "Ada", "Lovelace")
-	_, err := repo.CreateUser(first)
+	createdFirst, err := repo.CreateUser(first)
 	require.NoError(t, err, "expected CreateUser to succeed")
 
-	time.Sleep(1100 * time.Millisecond)
-
 	second := makeUser(t, "newest-user", "Grace", "Hopper")
-	_, err = repo.CreateUser(second)
+	createdSecond, err := repo.CreateUser(second)
 	require.NoError(t, err, "expected CreateUser to succeed")
 
 	all, err := repo.GetAllUsers()
@@ -286,6 +286,9 @@ func TestGetAllUsersOrdering(t *testing.T) {
 	}
 	require.NotEqual(t, -1, firstIndex, "expected the oldest user to be present in GetAllUsers")
 	require.NotEqual(t, -1, secondIndex, "expected the newest user to be present in GetAllUsers")
+	require.True(t, createdSecond.CreatedAt.After(createdFirst.CreatedAt),
+		"expected the second user to have been created after the first (%v vs %v)",
+		createdSecond.CreatedAt, createdFirst.CreatedAt)
 	assert.False(t, secondIndex >= firstIndex,
 		"expected newer users to come first; newest-user at index %d, oldest-user at index %d", secondIndex, firstIndex)
 }

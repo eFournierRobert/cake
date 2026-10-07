@@ -24,7 +24,7 @@
 - The module is **go 1.27.1**, where `uuid` is a standard-library package: code imports bare `"uuid"` (e.g. for `uuid.NewV4()`, `uuid.MustParse()`). It needs no entry in `go.mod`, and a bare `uuid` line must not be added — `go mod tidy` removes it. Do not "fix" the bare `uuid` import by switching to `github.com/google/uuid`.
 - **MySQL driver placeholders:** use sqlx named params (`:name`) or `?`.
 - The initial migration seeds `user_roles` (uuid `15afe83a-fd92-4d66-8f22-5a3bedbb53e1` = `user`, `5a18559d-9d20-4251-8a72-b36efbaff514` = `admin`) and `message_roles` via inline `INSERT` statements. Follow this pattern for seed data instead of seeding from app code.
-- **Timestamps are microsecond-precision.** All migrations declare `DATETIME(6)` (an early draft of `20260929001102_providers_models.sql` shipped plain `DATETIME` and was later corrected — never downgrade a column to second precision). In tests, compare *stored* values (`After`, `UnixMicro`) directly; the 1.1s `time.Sleep` between creates in `users_test.go` is a leftover from the second-precision era and is not needed for ordering. Only assert strict inequality of two near-simultaneous timestamps after a short sleep, or it can flake.
+- **Timestamps are microsecond-precision.** All migrations declare `DATETIME(6)` (an early draft of `20260929001102_providers_models.sql` shipped plain `DATETIME` and was later corrected — never downgrade a column to second precision). In tests, compare *stored* values (`After`, `UnixMicro`) directly, no sleeps needed for ordering; only assert strict inequality of two near-simultaneous timestamps after a short sleep, or it can flake.
 
 ## Verification
 

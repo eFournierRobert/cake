@@ -27,12 +27,14 @@ func (e *InternalDbError) Error() string {
 	return fmt.Errorf("internal DB error: %w", e.Err).Error()
 }
 
+// RoleNotFound is returned when no role matches the targeted identifier.
 type RoleNotFound struct{}
 
 func (e *RoleNotFound) Error() string {
 	return "role not found"
 }
 
+// ProviderNotFound is returned when no provider matches the targeted uuid.
 type ProviderNotFound struct{}
 
 func (e *ProviderNotFound) Error() string {
