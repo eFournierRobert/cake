@@ -234,7 +234,11 @@ func (s *Service) Login(username, password string) (string, error) {
 		"iat":  time.Now().Unix(),
 	})
 
-	tokenString, _ := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	tokenString, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	if err != nil {
+		return "", getAppErrorType(err)
+	}
+
 	return tokenString, nil
 }
 

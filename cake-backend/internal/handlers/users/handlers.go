@@ -8,17 +8,15 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type Handler struct {
-	service *userService.Service
+	service userService.UserService
 }
 
-func New(db *sqlx.DB, router *http.ServeMux) *Handler {
+func New(svc userService.UserService, router *http.ServeMux) *Handler {
 	h := Handler{
-		userService.New(db),
+		service: svc,
 	}
 
 	router.HandleFunc("GET /user", auth.RequireAuth(h.getCurrentUser))

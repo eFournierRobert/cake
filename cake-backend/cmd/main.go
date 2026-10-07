@@ -5,6 +5,7 @@ import (
 	userHandler "efournierrobert/cake-backend/internal/handlers/users"
 	"efournierrobert/cake-backend/internal/repository"
 	userRepo "efournierrobert/cake-backend/internal/repository/users"
+	"efournierrobert/cake-backend/internal/services/users"
 	"encoding/base64"
 	"fmt"
 	"log"
@@ -38,7 +39,8 @@ func main() {
 		Handler: mux,
 	}
 
-	_ = userHandler.New(db, mux)
+	usersService := users.New(db)
+	_ = userHandler.New(usersService, mux)
 
 	log.Println("Cake server started and listening on port 8080")
 	if err := server.ListenAndServe(); err != nil {
