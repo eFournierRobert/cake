@@ -7,12 +7,14 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 	"uuid"
 
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
 	"efournierrobert/cake-backend/internal/repository"
 	userRepo "efournierrobert/cake-backend/internal/repository/users"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,6 +32,7 @@ const (
 	prefixList   = "svc-list-"
 	prefixCreate = "svc-create-"
 	prefixDelete = "svc-delete-"
+	prefixLogin  = "svc-login-"
 )
 
 // A default, valid-length password for tests that do not exercise the
@@ -546,5 +549,58 @@ func TestDeleteUser(t *testing.T) {
 	t.Run("malformed uuid", func(t *testing.T) {
 		err := svc.DeleteUser("nonsense")
 		assert.ErrorIs(t, err, handler_errors.ErrInvalidRequest)
+	})
+}
+
+func TestLogin(t *testing.T) {
+	svc := service()
+	t.Setenv("JWT_SECRET", "test-only jwt secret")
+
+	t.Run("returns a valid token for a user", func(t *testing.T) {
+		user := makeUser(t, prefixLogin+"ada", "user", "Ada", "Lovelace", testPassword)
+		t.Cleanup(func() { deleteUsers(t, user) })
+
+		tokenString, err := svc.Login(prefixLogin+"ada", testPassword)
+		require.NoError(t, err, "expected Login to succeed with valid credentials")
+		require.NotEmpty(t, tokenString, "expected a token to be returned")
+
+		token, err := jwt.Parse(tokenString, func(*jwt.Token) (any, error) {
+			return []byte("test-only jwt secret"), nil
+		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+		require.NoError(t, err, "expected the token to verify with HS256 and the test secret")
+		require.True(t, token.Valid, "expected the token to be valid")
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		require.True(t, ok, "expected map claims")
+		assert.Equal(t, user.Uuid, claims["sub"], "expected the token subject to be the user uuid")
+		assert.Equal(t, "user", claims["role"], "expected the role claim to be the user's role name")
+
+		// iat and exp are unix seconds.
+		iat, ok := claims["iat"].(float64)
+		require.True(t, ok, "expected a numeric iat claim")
+		exp, ok := claims["exp"].(float64)
+		require.True(t, ok, "expected a numeric exp claim")
+		now := time.Now().Unix()
+		assert.InDelta(t, float64(now), iat, 2, "expected iat to be roughly now")
+		assert.InDelta(t, float64(now)+3600, exp, 2, "expected exp to be roughly one hour after now")
+	})
+
+	t.Run("returns a valid token for an admin", func(t *testing.T) {
+		user := makeUser(t, prefixLogin+"admin", "admin", "Alan", "Turing", testPassword)
+		t.Cleanup(func() { deleteUsers(t, user) })
+
+		tokenString, err := svc.Login(prefixLogin+"admin", testPassword)
+		require.NoError(t, err, "expected Login to succeed for the admin")
+
+		token, err := jwt.Parse(tokenString, func(*jwt.Token) (any, error) {
+			return []byte("test-only jwt secret"), nil
+		}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
+		require.NoError(t, err, "expected the admin token to verify with HS256 and the test secret")
+		require.True(t, token.Valid)
+
+		claims, ok := token.Claims.(jwt.MapClaims)
+		require.True(t, ok, "expected map claims")
+		assert.Equal(t, user.Uuid, claims["sub"], "expected the token subject to be the admin uuid")
+		assert.Equal(t, "admin", claims["role"], "expected the role claim to be admin")
 	})
 }

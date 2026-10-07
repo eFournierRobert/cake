@@ -142,6 +142,18 @@ func countRows(t *testing.T, query string, args ...any) int {
 	return count
 }
 
+// A fresh migrated database contains only seeded roles, never users:
+// GetAllUsers must return an empty list, not an error. The name is
+// ordered before the other tests so it runs against the empty table —
+// tests in this binary share one migrated database.
+func TestGetAllUsersEmpty(t *testing.T) {
+	repo := New(testDB)
+
+	all, err := repo.GetAllUsers()
+	require.NoError(t, err, "expected GetAllUsers to succeed on an empty users table")
+	assert.Empty(t, all, "expected no users before anything is created")
+}
+
 func TestCreateUser(t *testing.T) {
 	repo := New(testDB)
 	user := makeUser(t, "create-user", "Ada", "Lovelace")
@@ -276,4 +288,100 @@ func TestGetAllUsersOrdering(t *testing.T) {
 	require.NotEqual(t, -1, secondIndex, "expected the newest user to be present in GetAllUsers")
 	assert.False(t, secondIndex >= firstIndex,
 		"expected newer users to come first; newest-user at index %d, oldest-user at index %d", secondIndex, firstIndex)
+}
+
+func TestGetUserCredentials(t *testing.T) {
+	repo := New(testDB)
+
+	regular := makeUser(t, "creds-user", "Ada", "Lovelace")
+	createdRegular, err := repo.CreateUser(regular)
+	require.NoError(t, err, "expected CreateUser to succeed")
+
+	adminUser := makeUser(t, "creds-admin", "Grace", "Hopper")
+	adminUser.RoleId = seededAdminRoleID(t)
+	createdAdmin, err := repo.CreateUser(adminUser)
+	require.NoError(t, err, "expected CreateUser to succeed")
+
+	t.Cleanup(func() {
+		_, _ = testDB.Exec("DELETE FROM users WHERE uuid = ?", createdRegular.Uuid)
+		_, _ = testDB.Exec("DELETE FROM users WHERE uuid = ?", createdAdmin.Uuid)
+	})
+
+	found, err := repo.GetUserCredentials("creds-user")
+	require.NoError(t, err, "expected GetUserCredentials to find the user by username")
+	assert.Equal(t, createdRegular.Uuid, found.Uuid)
+	assert.Equal(t, "creds-user", found.Username)
+	assert.Equal(t, createdRegular.PasswordHash, found.PasswordHash)
+	assert.Equal(t, "user", found.RoleName, "expected the role name to be joined from user_roles")
+
+	found, err = repo.GetUserCredentials("creds-admin")
+	require.NoError(t, err, "expected GetUserCredentials to find the admin by username")
+	assert.Equal(t, createdAdmin.Uuid, found.Uuid)
+	assert.Equal(t, "creds-admin", found.Username)
+	assert.Equal(t, "admin", found.RoleName, "expected the admin role name to be joined from user_roles")
+
+	_, err = repo.GetUserCredentials("no-such-creds-user")
+	assert.ErrorIs(t, err, &repo_errors.UserNotFound{}, "expected *repo_errors.UserNotFound for an unknown username")
+}
+
+func TestUpdateUserDuplicateUsername(t *testing.T) {
+	repo := New(testDB)
+	first := makeUser(t, "upd-twin-a", "Ada", "Lovelace")
+	second := makeUser(t, "upd-twin-b", "Grace", "Hopper")
+	t.Cleanup(func() {
+		_, _ = testDB.Exec("DELETE FROM users WHERE uuid = ?", first.Uuid)
+		_, _ = testDB.Exec("DELETE FROM users WHERE uuid = ?", second.Uuid)
+	})
+
+	_, err := repo.CreateUser(first)
+	require.NoError(t, err, "expected the first user to be created")
+	_, err = repo.CreateUser(second)
+	require.NoError(t, err, "expected the second user to be created")
+
+	second.Username = first.Username
+
+	_, err = repo.UpdateUser(second)
+	assert.ErrorIs(t, err, &repo_errors.UserAlreadyExists{},
+		"expected *repo_errors.UserAlreadyExists when renaming onto a taken username")
+}
+
+func TestGetAllUsersContent(t *testing.T) {
+	repo := New(testDB)
+
+	first := makeUser(t, "content-user", "Ada", "Lovelace")
+	second := makeUser(t, "content-admin", "Grace", "Hopper")
+	second.RoleId = seededAdminRoleID(t)
+	createdFirst, err := repo.CreateUser(first)
+	require.NoError(t, err, "expected CreateUser to succeed")
+	createdSecond, err := repo.CreateUser(second)
+	require.NoError(t, err, "expected CreateUser to succeed")
+	t.Cleanup(func() {
+		_, _ = testDB.Exec("DELETE FROM users WHERE uuid = ?", createdFirst.Uuid)
+		_, _ = testDB.Exec("DELETE FROM users WHERE uuid = ?", createdSecond.Uuid)
+	})
+
+	all, err := repo.GetAllUsers()
+	require.NoError(t, err, "expected GetAllUsers to succeed")
+
+	byUsername := map[string]UserWithRole{}
+	for _, u := range all {
+		byUsername[u.User.Username] = u
+	}
+
+	userEntry, ok := byUsername["content-user"]
+	require.True(t, ok, "expected content-user to be present in GetAllUsers")
+	assert.Equal(t, createdFirst.Uuid, userEntry.User.Uuid)
+	assert.Equal(t, createdFirst.Id, userEntry.User.Id, "expected the auto-generated id to be returned")
+	assert.Equal(t, "Ada", userEntry.User.FirstName)
+	assert.Equal(t, "Lovelace", userEntry.User.LastName)
+	assert.Equal(t, "user", userEntry.RoleName, "expected the role name to be joined from user_roles")
+	assert.False(t, userEntry.User.CreatedAt.IsZero(), "expected created_at to be populated")
+
+	adminEntry, ok := byUsername["content-admin"]
+	require.True(t, ok, "expected content-admin to be present in GetAllUsers")
+	assert.Equal(t, createdSecond.Uuid, adminEntry.User.Uuid)
+	assert.Equal(t, "Grace", adminEntry.User.FirstName)
+	assert.Equal(t, "Hopper", adminEntry.User.LastName)
+	assert.Equal(t, second.RoleId, adminEntry.User.RoleId)
+	assert.Equal(t, "admin", adminEntry.RoleName, "expected the admin role name to be joined from user_roles")
 }
