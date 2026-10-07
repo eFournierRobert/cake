@@ -10,10 +10,14 @@ import (
 	"net/http"
 )
 
+// Handler provides HTTP handlers for user-related operations.
+// It is initialized with a UserService and registers routes on the provided router.
 type Handler struct {
 	service userService.UserService
 }
 
+// New creates a new Handler and registers all user-related routes on the router.
+// It registers handlers for both authenticated user endpoints and admin endpoints.
 func New(svc userService.UserService, router *http.ServeMux) *Handler {
 	h := Handler{
 		service: svc,
@@ -37,6 +41,8 @@ func New(svc userService.UserService, router *http.ServeMux) *Handler {
 	return &h
 }
 
+// login handles POST /login and authenticates a user with username and password.
+// On success, it sets a JWT cookie and returns 200 OK.
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	var req handlers.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -63,6 +69,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// logout handles POST /logout and clears the JWT cookie.
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "jwt-token",
@@ -76,6 +83,7 @@ func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// getCurrentUser handles GET /user and returns the authenticated user's profile.
 func (h *Handler) getCurrentUser(w http.ResponseWriter, r *http.Request) {
 	currentUserUuid := r.Context().Value(auth.UserUuidKey).(string)
 
@@ -96,6 +104,8 @@ func (h *Handler) getCurrentUser(w http.ResponseWriter, r *http.Request) {
 	w.Write(requestBody)
 }
 
+// patchCurrentUser handles PATCH /user and allows the authenticated user to
+// update their own profile (first name, last name, username).
 func (h *Handler) patchCurrentUser(w http.ResponseWriter, r *http.Request) {
 	currentUserUuid := r.Context().Value(auth.UserUuidKey).(string)
 
@@ -122,6 +132,8 @@ func (h *Handler) patchCurrentUser(w http.ResponseWriter, r *http.Request) {
 	w.Write(requestBody)
 }
 
+// postCurrentUserPassword handles POST /user/password and allows the authenticated
+// user to change their own password.
 func (h *Handler) postCurrentUserPassword(w http.ResponseWriter, r *http.Request) {
 	currentUserUuid := r.Context().Value(auth.UserUuidKey).(string)
 
@@ -140,6 +152,7 @@ func (h *Handler) postCurrentUserPassword(w http.ResponseWriter, r *http.Request
 	w.WriteHeader(http.StatusOK)
 }
 
+// getUsers handles GET /users and lists all users (admin only).
 func (h *Handler) getUsers(w http.ResponseWriter, r *http.Request) {
 	us, err := h.service.GetAllUsers()
 	if err != nil {
@@ -158,6 +171,7 @@ func (h *Handler) getUsers(w http.ResponseWriter, r *http.Request) {
 	w.Write(requestBody)
 }
 
+// postUser handles POST /users and creates a new user (admin only).
 func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
 	var req handlers.UserCreate
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -182,6 +196,7 @@ func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
 	w.Write(requestBody)
 }
 
+// getUser handles GET /users/{uuid} and returns a specific user (admin only).
 func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	userUuid := r.PathValue("uuid")
 
@@ -202,6 +217,8 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 	w.Write(requestBody)
 }
 
+// patchUser handles PATCH /users/{uuid} and updates a user (admin only).
+// Can update the user's role in addition to profile fields.
 func (h *Handler) patchUser(w http.ResponseWriter, r *http.Request) {
 	userUuid := r.PathValue("uuid")
 
@@ -228,6 +245,7 @@ func (h *Handler) patchUser(w http.ResponseWriter, r *http.Request) {
 	w.Write(requestBody)
 }
 
+// deleteUser handles DELETE /users/{uuid} and removes a user (admin only).
 func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request) {
 	userUuid := r.PathValue("uuid")
 
@@ -240,6 +258,7 @@ func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// postUserPassword handles POST /users/{uuid}/password and changes a user's password (admin only).
 func (h *Handler) postUserPassword(w http.ResponseWriter, r *http.Request) {
 	userUuid := r.PathValue("uuid")
 

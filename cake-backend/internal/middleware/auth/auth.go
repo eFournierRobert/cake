@@ -1,3 +1,4 @@
+// Package auth provides HTTP middleware for JWT-based authentication and authorization.
 package auth
 
 import (
@@ -10,10 +11,17 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// contextKey is a private type for context keys to avoid collisions between
+// different packages that might use context values.
 type contextKey string
 
+// UserUuidKey is the context key for the authenticated user's UUID.
 const UserUuidKey contextKey = "userUuid"
 
+// RequireAuth is middleware that validates a JWT token from the "jwt-token" cookie.
+// If validation succeeds, it adds the user's UUID to the request context and
+// calls the next handler. If validation fails, it logs the error and returns
+// a 401 Unauthorized response.
 func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getAndValidateJwt(w, r)
@@ -35,6 +43,11 @@ func RequireAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// RequireAdminAuth is middleware that validates a JWT token and ensures the
+// user has the "admin" role. If validation succeeds and the user is an admin,
+// it adds the user's UUID to the request context and calls the next handler.
+// If validation fails or the user is not an admin, it logs the error and returns
+// an appropriate error response (401 Unauthorized or 403 Forbidden).
 func RequireAdminAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		claims, err := getAndValidateJwt(w, r)
@@ -44,7 +57,7 @@ func RequireAdminAuth(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		if claims["role"].(string) != "admin" {
-			log.Println(err)
+			log.Println("User is not an admin, access denied")
 			http.Error(w, "Forbidden", http.StatusForbidden)
 			return
 		}
@@ -62,6 +75,9 @@ func RequireAdminAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// getAndValidateJwt extracts and validates a JWT token from the "jwt-token" cookie.
+// It returns the parsed claims if valid, or an error if the token is missing,
+// invalid, or has invalid claims.
 func getAndValidateJwt(w http.ResponseWriter, r *http.Request) (jwt.MapClaims, error) {
 	cookie, err := r.Cookie("jwt-token")
 	if err != nil {
