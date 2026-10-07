@@ -2,7 +2,7 @@ package main
 
 import (
 	"crypto/rand"
-	userHandler2 "efournierrobert/cake-backend/internal/handlers/users"
+	userHandler "efournierrobert/cake-backend/internal/handlers/users"
 	"efournierrobert/cake-backend/internal/repository"
 	userRepo "efournierrobert/cake-backend/internal/repository/users"
 	"encoding/base64"
@@ -38,7 +38,7 @@ func main() {
 		Handler: mux,
 	}
 
-	_ = userHandler2.New(db, mux)
+	_ = userHandler.New(db, mux)
 
 	log.Println("Cake server started and listening on port 8080")
 	if err := server.ListenAndServe(); err != nil {
