@@ -18,6 +18,7 @@ type Repository struct {
 	conn *sqlx.DB
 }
 
+// New creates a new User repository with the given database connection.
 func New(db *sqlx.DB) *Repository {
 	return &Repository{conn: db}
 }
@@ -27,27 +28,26 @@ func (r *Repository) GetAllUsers() ([]UserWithRole, error) {
 	var users []UserWithRole
 	if err := r.conn.Select(&users,
 		`SELECT 
-    	 	users.id,
-			users.uuid,
-			users.username,
-			users.password_hash,
-			users.first_name,
-			users.last_name,
-			users.role_id,
-			users.created_at,
-			users.updated_at,
-			user_roles.name AS role_name 
-		FROM users 
-		JOIN user_roles ON users.role_id = user_roles.id 
-		ORDER BY users.created_at DESC`); err != nil {
+			 	users.id,
+				users.uuid,
+				users.username,
+				users.password_hash,
+				users.first_name,
+				users.last_name,
+				users.role_id,
+				users.created_at,
+				users.updated_at,
+				user_roles.name AS role_name 
+			FROM users 
+			JOIN user_roles ON users.role_id = user_roles.id 
+			ORDER BY users.created_at DESC`); err != nil {
 		return nil, &repo_errors.InternalDbError{Err: err}
 	}
 
 	return users, nil
 }
 
-// GetUser returns the user with the given uuid, or
-// *repo_errors.UserNotFound.
+// GetUser returns the user with the given uuid, or *repo_errors.UserNotFound.
 func (r *Repository) GetUser(uuid uuid.UUID) (User, error) {
 	var user User
 	err := r.conn.Get(&user,
@@ -64,17 +64,16 @@ func (r *Repository) GetUser(uuid uuid.UUID) (User, error) {
 }
 
 // UpdateUser updates a user by uuid and returns the updated user as
-// stored in the database, or *repo_errors.UserNotFound if no user
-// matches.
+// stored in the database, or *repo_errors.UserNotFound if no user matches.
 func (r *Repository) UpdateUser(user User) (User, error) {
 	user.UpdatedAt = time.Now()
 	_, err := r.conn.NamedExec(
 		`UPDATE users 
-			SET first_name = :first_name, 
-			    last_name = :last_name, 
-			    username = :username, 
-			    password_hash = :password_hash, 
-			    role_id = :role_id, 
+			SET first_name = :first_name,
+			    last_name = :last_name,
+			    username = :username,
+			    password_hash = :password_hash,
+			    role_id = :role_id,
 			    updated_at = :updated_at 
 			WHERE uuid = :uuid`,
 		user)
@@ -99,22 +98,22 @@ func (r *Repository) CreateUser(user User) (User, error) {
 
 	_, err := r.conn.NamedExec(
 		`INSERT INTO users (
-                   uuid, 
-                   username, 
-                   password_hash, 
-                   first_name, 
-                   last_name, 
-                   created_at, 
-                   updated_at, 
+                   uuid,
+                   username,
+                   password_hash,
+                   first_name,
+                   last_name,
+                   created_at,
+                   updated_at,
                    role_id) 
 		VALUES (
-		        :uuid, 
-		        :username, 
-		        :password_hash, 
-		        :first_name, 
-		        :last_name, 
-		        :created_at, 
-		        :updated_at, 
+		        :uuid,
+		        :username,
+		        :password_hash,
+		        :first_name,
+		        :last_name,
+		        :created_at,
+		        :updated_at,
 		        :role_id)`,
 		user)
 	if err != nil {
@@ -151,16 +150,18 @@ func (r *Repository) DeleteUser(uuid uuid.UUID) error {
 	return nil
 }
 
+// GetUserCredentials returns a user's credentials (uuid, username, password hash, role)
+// for authentication purposes. It is used by the Login service.
 func (r *Repository) GetUserCredentials(username string) (UserWithRole, error) {
 	var user UserWithRole
 	err := r.conn.Get(&user, `SELECT 
-    	users.uuid,
-    	users.username, 
-    	users.password_hash,
-    	user_roles.name AS role_name
-    	FROM users
-    	JOIN user_roles ON users.role_id = user_roles.id
-    	WHERE users.username = ?`, username)
+		 	users.uuid,
+		 	users.username,
+		 	users.password_hash,
+		 	user_roles.name AS role_name
+		 	FROM users
+		 	JOIN user_roles ON users.role_id = user_roles.id
+		 	WHERE users.username = ?`, username)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return UserWithRole{}, &repo_errors.UserNotFound{}

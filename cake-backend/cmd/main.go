@@ -48,6 +48,8 @@ func main() {
 	}
 }
 
+// firstTimeSetup checks if the database is empty and creates an admin user
+// if no users exist. The admin password is randomly generated and logged.
 func firstTimeSetup(db *sqlx.DB) {
 	var userCount int
 	err := db.Get(&userCount, "SELECT COUNT(*) FROM users LIMIT 1")
@@ -88,22 +90,22 @@ func firstTimeSetup(db *sqlx.DB) {
 
 	_, err = db.NamedExec(
 		`INSERT INTO users (
-                   uuid, 
-                   username, 
-                   password_hash, 
-                   first_name, 
-                   last_name, 
-                   created_at, 
-                   updated_at, 
-                   role_id) 
+                   uuid,
+                   username,
+                   password_hash,
+                   first_name,
+                   last_name,
+                   created_at,
+                   updated_at,
+                   role_id)
 		VALUES (
-		        :uuid, 
-		        :username, 
-		        :password_hash, 
-		        :first_name, 
-		        :last_name, 
-		        :created_at, 
-		        :updated_at, 
+		        :uuid,
+		        :username,
+		        :password_hash,
+		        :first_name,
+		        :last_name,
+		        :created_at,
+		        :updated_at,
 		        :role_id)`,
 		user)
 	if err != nil {
@@ -114,6 +116,7 @@ func firstTimeSetup(db *sqlx.DB) {
 	log.Println("Change this password IMMEDIATELY")
 }
 
+// generatePassword creates a random 32-byte password encoded as base64.
 func generatePassword() (string, error) {
 	b := make([]byte, 24)
 

@@ -24,6 +24,7 @@ type Service struct {
 	roleRepo *roles.Repository
 }
 
+// New creates a new User service with the given database connection.
 func New(db *sqlx.DB) *Service {
 	return &Service{
 		repo:     userRepo.New(db),
@@ -216,6 +217,7 @@ func (s *Service) DeleteUser(userUuid string) error {
 	return nil
 }
 
+// Login exchanges valid credentials for a signed JWT.
 func (s *Service) Login(username, password string) (string, error) {
 	u, err := s.repo.GetUserCredentials(username)
 	if err != nil {
@@ -242,6 +244,9 @@ func (s *Service) Login(username, password string) (string, error) {
 	return tokenString, nil
 }
 
+// getUserFromStrUuid parses a string UUID and retrieves the user from the repository.
+// It returns handler_errors.ErrInvalidRequest if the UUID is invalid, or
+// handler_errors.ErrUserDoesNotExist if no user is found.
 func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
 	realUuid, err := uuid.Parse(strUuid)
 	if err != nil {
@@ -258,6 +263,8 @@ func (s *Service) getUserFromStrUuid(strUuid string) (userRepo.User, error) {
 	return user, nil
 }
 
+// userCreateDtoToUser converts a UserCreate DTO to a repository User entity.
+// It looks up the role by name and generates a new UUID for the user.
 func (s *Service) userCreateDtoToUser(user handlers.UserCreate, hashedPassword []byte) (userRepo.User, error) {
 	role, err := s.roleRepo.GetRoleByName(user.Role)
 	if err != nil {
@@ -277,6 +284,7 @@ func (s *Service) userCreateDtoToUser(user handlers.UserCreate, hashedPassword [
 	}, nil
 }
 
+// userWithRoleToDto converts a UserWithRole entity to a UserDto.
 func (s *Service) userWithRoleToDto(user userRepo.UserWithRole) handlers.UserDto {
 	return handlers.UserDto{
 		Uuid:        user.User.Uuid,
@@ -289,6 +297,7 @@ func (s *Service) userWithRoleToDto(user userRepo.UserWithRole) handlers.UserDto
 	}
 }
 
+// userToDto converts a User entity to a UserDto, looking up the role name.
 func (s *Service) userToDto(user userRepo.User) (handlers.UserDto, error) {
 	role, err := s.roleRepo.GetRoleById(user.RoleId)
 	if err != nil {
@@ -306,6 +315,7 @@ func (s *Service) userToDto(user userRepo.User) (handlers.UserDto, error) {
 	}, nil
 }
 
+// getAppErrorType maps repository errors to handler errors.
 func getAppErrorType(err error) error {
 	log.Println("error happened: " + err.Error())
 
@@ -322,6 +332,7 @@ func getAppErrorType(err error) error {
 	return handler_errors.ErrUnexpectedError
 }
 
+// isPasswordGoodLength validates that a password is between 12 and 72 characters.
 func isPasswordGoodLength(password string) bool {
 	return len(password) >= 12 && len(password) <= 72
 }

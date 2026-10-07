@@ -17,6 +17,7 @@ type User struct {
 	RoleId       int       `db:"role_id"`
 }
 
+// UserWithRole extends User with the role name for queries that join the user_roles table.
 type UserWithRole struct {
 	User
 	RoleName string `db:"role_name"`
