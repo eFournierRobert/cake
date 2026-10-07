@@ -150,3 +150,23 @@ func (r *Repository) DeleteUser(uuid uuid.UUID) error {
 
 	return nil
 }
+
+func (r *Repository) GetUserCredentials(username string) (UserWithRole, error) {
+	var user UserWithRole
+	err := r.conn.Get(&user, `SELECT 
+    	users.uuid,
+    	users.username, 
+    	users.password_hash,
+    	user_roles.name AS role_name
+    	FROM users
+    	JOIN user_roles ON users.role_id = user_roles.id
+    	WHERE users.username = ?`, username)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return UserWithRole{}, &repo_errors.UserNotFound{}
+		}
+		return UserWithRole{}, &repo_errors.InternalDbError{Err: err}
+	}
+
+	return user, nil
+}
