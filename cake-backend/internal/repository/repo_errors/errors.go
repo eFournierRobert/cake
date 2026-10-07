@@ -32,3 +32,9 @@ type RoleNotFound struct{}
 func (e *RoleNotFound) Error() string {
 	return "role not found"
 }
+
+type ProviderNotFound struct{}
+
+func (e *ProviderNotFound) Error() string {
+	return "provider not found"
+}
