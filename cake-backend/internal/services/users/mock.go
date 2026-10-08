@@ -1,6 +1,8 @@
 package users
 
-import "efournierrobert/cake-backend/internal/handlers"
+import (
+	"efournierrobert/cake-backend/internal/handlers/models"
+)
 
 // MockService is a hand-written test double for UserService, used by
 // the HTTP handler tests.
@@ -16,25 +18,25 @@ import "efournierrobert/cake-backend/internal/handlers"
 // records the arguments it received in the matching *Arg fields, so
 // tests can assert on what the handler forwarded.
 type MockService struct {
-	GetUserFunc func(strUuid string) (handlers.UserDto, error)
+	GetUserFunc func(strUuid string) (models.UserDto, error)
 	GetUserArg  string
 
-	ModifyUserFunc      func(currentUserUuid string, userUpdate handlers.UserUpdate) (handlers.UserDto, error)
+	ModifyUserFunc      func(currentUserUuid string, userUpdate models.UserUpdate) (models.UserDto, error)
 	ModifyUserUuidArg   string
-	ModifyUserUpdateArg handlers.UserUpdate
+	ModifyUserUpdateArg models.UserUpdate
 
-	AdminModifyUserFunc      func(userUuid string, userUpdate handlers.AdminUserUpdate) (handlers.UserDto, error)
+	AdminModifyUserFunc      func(userUuid string, userUpdate models.AdminUserUpdate) (models.UserDto, error)
 	AdminModifyUserUuidArg   string
-	AdminModifyUserUpdateArg handlers.AdminUserUpdate
+	AdminModifyUserUpdateArg models.AdminUserUpdate
 
 	ChangePasswordFunc    func(currentUserUuid string, newPassword string) error
 	ChangePasswordUuidArg string
 	ChangePasswordNewArg  string
 
-	GetAllUsersFunc func() ([]handlers.UserDto, error)
+	GetAllUsersFunc func() ([]models.UserDto, error)
 
-	CreateUserFunc func(userCreateDto handlers.UserCreate) (handlers.UserDto, error)
-	CreateUserArg  handlers.UserCreate
+	CreateUserFunc func(userCreateDto models.UserCreate) (models.UserDto, error)
+	CreateUserArg  models.UserCreate
 
 	DeleteUserFunc func(userUuid string) error
 	DeleteUserArg  string
@@ -46,28 +48,28 @@ type MockService struct {
 
 var _ UserService = (*MockService)(nil)
 
-func (m *MockService) GetUser(strUuid string) (handlers.UserDto, error) {
+func (m *MockService) GetUser(strUuid string) (models.UserDto, error) {
 	m.GetUserArg = strUuid
 	if m.GetUserFunc == nil {
-		return handlers.UserDto{}, nil
+		return models.UserDto{}, nil
 	}
 	return m.GetUserFunc(strUuid)
 }
 
-func (m *MockService) ModifyUser(currentUserUuid string, userUpdate handlers.UserUpdate) (handlers.UserDto, error) {
+func (m *MockService) ModifyUser(currentUserUuid string, userUpdate models.UserUpdate) (models.UserDto, error) {
 	m.ModifyUserUuidArg = currentUserUuid
 	m.ModifyUserUpdateArg = userUpdate
 	if m.ModifyUserFunc == nil {
-		return handlers.UserDto{}, nil
+		return models.UserDto{}, nil
 	}
 	return m.ModifyUserFunc(currentUserUuid, userUpdate)
 }
 
-func (m *MockService) AdminModifyUser(userUuid string, userUpdate handlers.AdminUserUpdate) (handlers.UserDto, error) {
+func (m *MockService) AdminModifyUser(userUuid string, userUpdate models.AdminUserUpdate) (models.UserDto, error) {
 	m.AdminModifyUserUuidArg = userUuid
 	m.AdminModifyUserUpdateArg = userUpdate
 	if m.AdminModifyUserFunc == nil {
-		return handlers.UserDto{}, nil
+		return models.UserDto{}, nil
 	}
 	return m.AdminModifyUserFunc(userUuid, userUpdate)
 }
@@ -81,17 +83,17 @@ func (m *MockService) ChangePassword(currentUserUuid string, newPassword string)
 	return m.ChangePasswordFunc(currentUserUuid, newPassword)
 }
 
-func (m *MockService) GetAllUsers() ([]handlers.UserDto, error) {
+func (m *MockService) GetAllUsers() ([]models.UserDto, error) {
 	if m.GetAllUsersFunc == nil {
 		return nil, nil
 	}
 	return m.GetAllUsersFunc()
 }
 
-func (m *MockService) CreateUser(userCreateDto handlers.UserCreate) (handlers.UserDto, error) {
+func (m *MockService) CreateUser(userCreateDto models.UserCreate) (models.UserDto, error) {
 	m.CreateUserArg = userCreateDto
 	if m.CreateUserFunc == nil {
-		return handlers.UserDto{}, nil
+		return models.UserDto{}, nil
 	}
 	return m.CreateUserFunc(userCreateDto)
 }

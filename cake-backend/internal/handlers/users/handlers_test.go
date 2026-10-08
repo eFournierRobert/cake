@@ -1,8 +1,8 @@
 package users
 
 import (
-	"efournierrobert/cake-backend/internal/handlers"
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
+	"efournierrobert/cake-backend/internal/handlers/models"
 	mock "efournierrobert/cake-backend/internal/services/users"
 	"encoding/json"
 	"errors"
@@ -50,8 +50,8 @@ func testToken(t *testing.T, sub, role string, exp time.Time) string {
 }
 
 // testDto builds a UserDto with fixed, non-zero timestamps.
-func testDto(uuid, username, role, firstName, lastName string) handlers.UserDto {
-	return handlers.UserDto{
+func testDto(uuid, username, role, firstName, lastName string) models.UserDto {
+	return models.UserDto{
 		Uuid:        uuid,
 		Username:    username,
 		Role:        role,
@@ -117,7 +117,7 @@ func TestLogin(t *testing.T) {
 		mux := http.NewServeMux()
 		New(mock, mux)
 
-		rec := doRequest(t, mux, http.MethodPost, "/login", "", handlers.LoginRequest{
+		rec := doRequest(t, mux, http.MethodPost, "/login", "", models.LoginRequest{
 			Username: "ada",
 			Password: "sup3r-s3cure-pass!",
 		})
@@ -162,7 +162,7 @@ func TestLogin(t *testing.T) {
 		mux := http.NewServeMux()
 		New(mock, mux)
 
-		rec := doRequest(t, mux, http.MethodPost, "/login", "", handlers.LoginRequest{
+		rec := doRequest(t, mux, http.MethodPost, "/login", "", models.LoginRequest{
 			Username: "ada",
 			Password: "wrong-password",
 		})
@@ -189,7 +189,7 @@ func TestGetCurrentUser(t *testing.T) {
 	t.Run("returns the current user's profile", func(t *testing.T) {
 		dto := testDto(testUuid, "ada", "user", "Ada", "Lovelace")
 		mock := &mock.MockService{
-			GetUserFunc: func(strUuid string) (handlers.UserDto, error) {
+			GetUserFunc: func(strUuid string) (models.UserDto, error) {
 				return dto, nil
 			},
 		}
@@ -200,7 +200,7 @@ func TestGetCurrentUser(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, rec.Code, "expected the profile to load; body: %s", rec.Body.String())
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
-		var got handlers.UserDto
+		var got models.UserDto
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
 		assert.Equal(t, dto, got, "expected the decoded profile to match the service dto")
 
@@ -209,8 +209,8 @@ func TestGetCurrentUser(t *testing.T) {
 
 	t.Run("service error maps to the matching status", func(t *testing.T) {
 		mock := &mock.MockService{
-			GetUserFunc: func(strUuid string) (handlers.UserDto, error) {
-				return handlers.UserDto{}, handler_errors.ErrUserDoesNotExist
+			GetUserFunc: func(strUuid string) (models.UserDto, error) {
+				return models.UserDto{}, handler_errors.ErrUserDoesNotExist
 			},
 		}
 		mux := http.NewServeMux()
@@ -222,9 +222,9 @@ func TestGetCurrentUser(t *testing.T) {
 
 	t.Run("no cookie", func(t *testing.T) {
 		mock := &mock.MockService{
-			GetUserFunc: func(strUuid string) (handlers.UserDto, error) {
+			GetUserFunc: func(strUuid string) (models.UserDto, error) {
 				t.Error("expected the service not to be called without a valid token")
-				return handlers.UserDto{}, nil
+				return models.UserDto{}, nil
 			},
 		}
 		mux := http.NewServeMux()
@@ -260,18 +260,18 @@ func TestPatchCurrentUser(t *testing.T) {
 	t.Run("updates the provided fields", func(t *testing.T) {
 		dto := testDto(testUuid, "augusta", "user", "Augusta", "King")
 		mock := &mock.MockService{
-			ModifyUserFunc: func(currentUserUuid string, update handlers.UserUpdate) (handlers.UserDto, error) {
+			ModifyUserFunc: func(currentUserUuid string, update models.UserUpdate) (models.UserDto, error) {
 				return dto, nil
 			},
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
 
-		update := handlers.UserUpdate{FirstName: "Augusta", LastName: "King"}
+		update := models.UserUpdate{FirstName: "Augusta", LastName: "King"}
 		rec := doRequest(t, mux, http.MethodPatch, "/user", testToken(t, testUuid, "user", time.Now().Add(time.Hour)), update)
 
 		require.Equal(t, http.StatusOK, rec.Code, "expected the update to succeed; body: %s", rec.Body.String())
-		var got handlers.UserDto
+		var got models.UserDto
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
 		assert.Equal(t, dto, got)
 
@@ -294,13 +294,13 @@ func TestPatchCurrentUser(t *testing.T) {
 
 	t.Run("service conflict", func(t *testing.T) {
 		mock := &mock.MockService{
-			ModifyUserFunc: func(string, handlers.UserUpdate) (handlers.UserDto, error) {
-				return handlers.UserDto{}, handler_errors.ErrResourceConflict
+			ModifyUserFunc: func(string, models.UserUpdate) (models.UserDto, error) {
+				return models.UserDto{}, handler_errors.ErrResourceConflict
 			},
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
-		rec := doRequest(t, mux, http.MethodPatch, "/user", testToken(t, testUuid, "user", time.Now().Add(time.Hour)), handlers.UserUpdate{Username: "taken"})
+		rec := doRequest(t, mux, http.MethodPatch, "/user", testToken(t, testUuid, "user", time.Now().Add(time.Hour)), models.UserUpdate{Username: "taken"})
 		assertError(t, rec, http.StatusConflict, "resource_conflict")
 	})
 
@@ -308,7 +308,7 @@ func TestPatchCurrentUser(t *testing.T) {
 		mock := &mock.MockService{}
 		mux := http.NewServeMux()
 		New(mock, mux)
-		rec := doRequest(t, mux, http.MethodPatch, "/user", "", handlers.UserUpdate{FirstName: "X"})
+		rec := doRequest(t, mux, http.MethodPatch, "/user", "", models.UserUpdate{FirstName: "X"})
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 		assert.Empty(t, mock.ModifyUserUuidArg, "expected no modify call without a cookie")
 	})
@@ -325,7 +325,7 @@ func TestPostCurrentUserPassword(t *testing.T) {
 		New(mock, mux)
 
 		rec := doRequest(t, mux, http.MethodPost, "/user/password", testToken(t, testUuid, "user", time.Now().Add(time.Hour)),
-			handlers.PasswordChangeRequest{Password: "new-new-new-pass"})
+			models.PasswordChangeRequest{Password: "new-new-new-pass"})
 
 		require.Equal(t, http.StatusOK, rec.Code, "expected the password change to succeed; body: %s", rec.Body.String())
 		assert.Empty(t, rec.Body.String(), "expected no body on success")
@@ -355,7 +355,7 @@ func TestPostCurrentUserPassword(t *testing.T) {
 		mux := http.NewServeMux()
 		New(mock, mux)
 		rec := doRequest(t, mux, http.MethodPost, "/user/password", testToken(t, testUuid, "user", time.Now().Add(time.Hour)),
-			handlers.PasswordChangeRequest{Password: "short"})
+			models.PasswordChangeRequest{Password: "short"})
 		assertError(t, rec, http.StatusUnauthorized, "invalid_credentials")
 	})
 
@@ -368,7 +368,7 @@ func TestPostCurrentUserPassword(t *testing.T) {
 		mux := http.NewServeMux()
 		New(mock, mux)
 		rec := doRequest(t, mux, http.MethodPost, "/user/password", testToken(t, testUuid, "user", time.Now().Add(time.Hour)),
-			handlers.PasswordChangeRequest{Password: "valid-new-pass-1"})
+			models.PasswordChangeRequest{Password: "valid-new-pass-1"})
 		assertError(t, rec, http.StatusNotFound, "user_does_not_exist")
 	})
 
@@ -376,7 +376,7 @@ func TestPostCurrentUserPassword(t *testing.T) {
 		mock := &mock.MockService{}
 		mux := http.NewServeMux()
 		New(mock, mux)
-		rec := doRequest(t, mux, http.MethodPost, "/user/password", "", handlers.PasswordChangeRequest{Password: "valid-new-pass-1"})
+		rec := doRequest(t, mux, http.MethodPost, "/user/password", "", models.PasswordChangeRequest{Password: "valid-new-pass-1"})
 		assert.Equal(t, http.StatusUnauthorized, rec.Code)
 		assert.Empty(t, mock.ChangePasswordUuidArg, "expected no password change call without a cookie")
 	})
@@ -405,21 +405,21 @@ func TestAdminEndpointsRequireAuth(t *testing.T) {
 	for _, row := range rows {
 		t.Run(row.method+" "+row.path, func(t *testing.T) {
 			mock := &mock.MockService{
-				GetUserFunc: func(string) (handlers.UserDto, error) {
+				GetUserFunc: func(string) (models.UserDto, error) {
 					t.Error("unexpected GetUser call in the auth gate test")
-					return handlers.UserDto{}, nil
+					return models.UserDto{}, nil
 				},
-				GetAllUsersFunc: func() ([]handlers.UserDto, error) {
+				GetAllUsersFunc: func() ([]models.UserDto, error) {
 					t.Error("unexpected GetAllUsers call in the auth gate test")
 					return nil, nil
 				},
-				CreateUserFunc: func(handlers.UserCreate) (handlers.UserDto, error) {
+				CreateUserFunc: func(models.UserCreate) (models.UserDto, error) {
 					t.Error("unexpected CreateUser call in the auth gate test")
-					return handlers.UserDto{}, nil
+					return models.UserDto{}, nil
 				},
-				AdminModifyUserFunc: func(string, handlers.AdminUserUpdate) (handlers.UserDto, error) {
+				AdminModifyUserFunc: func(string, models.AdminUserUpdate) (models.UserDto, error) {
 					t.Error("unexpected AdminModifyUser call in the auth gate test")
-					return handlers.UserDto{}, nil
+					return models.UserDto{}, nil
 				},
 				DeleteUserFunc: func(string) error { t.Error("unexpected DeleteUser call in the auth gate test"); return nil },
 				ChangePasswordFunc: func(string, string) error {
@@ -447,12 +447,12 @@ func TestGetUsers(t *testing.T) {
 	adminToken := testToken(t, testUuid, "admin", time.Now().Add(time.Hour))
 
 	t.Run("returns every user as JSON", func(t *testing.T) {
-		list := []handlers.UserDto{
+		list := []models.UserDto{
 			testDto("11111111-1111-4111-8111-111111111111", "ada", "user", "Ada", "Lovelace"),
 			testDto("22222222-2222-4222-8222-222222222222", "alan", "admin", "Alan", "Turing"),
 		}
 		mock := &mock.MockService{
-			GetAllUsersFunc: func() ([]handlers.UserDto, error) {
+			GetAllUsersFunc: func() ([]models.UserDto, error) {
 				return list, nil
 			},
 		}
@@ -463,14 +463,14 @@ func TestGetUsers(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, rec.Code, "expected the list to load; body: %s", rec.Body.String())
 		assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
-		var got []handlers.UserDto
+		var got []models.UserDto
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
 		assert.Equal(t, list, got, "expected the decoded list to match the service output, order included")
 	})
 
 	t.Run("unexpected service error maps to 500", func(t *testing.T) {
 		mock := &mock.MockService{
-			GetAllUsersFunc: func() ([]handlers.UserDto, error) {
+			GetAllUsersFunc: func() ([]models.UserDto, error) {
 				// A plain error: exercises WriteError's fallback to
 				// ErrUnexpectedError for anything that is not an
 				// AppError.
@@ -491,18 +491,18 @@ func TestPostUser(t *testing.T) {
 	t.Run("creates a user", func(t *testing.T) {
 		dto := testDto("33333333-3333-4333-8333-333333333333", "grace", "user", "Grace", "Hopper")
 		mock := &mock.MockService{
-			CreateUserFunc: func(create handlers.UserCreate) (handlers.UserDto, error) {
+			CreateUserFunc: func(create models.UserCreate) (models.UserDto, error) {
 				return dto, nil
 			},
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
 
-		create := handlers.UserCreate{Username: "grace", Password: "sup3r-s3cure-pass!", Role: "user", FirstName: "Grace", LastName: "Hopper"}
+		create := models.UserCreate{Username: "grace", Password: "sup3r-s3cure-pass!", Role: "user", FirstName: "Grace", LastName: "Hopper"}
 		rec := doRequest(t, mux, http.MethodPost, "/users", adminToken, create)
 
 		require.Equal(t, http.StatusOK, rec.Code, "expected the user to be created; body: %s", rec.Body.String())
-		var got handlers.UserDto
+		var got models.UserDto
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
 		assert.Equal(t, dto, got)
 		assert.Equal(t, create, mock.CreateUserArg, "expected the decoded create payload to be forwarded")
@@ -511,14 +511,14 @@ func TestPostUser(t *testing.T) {
 	t.Run("creates an admin", func(t *testing.T) {
 		dto := testDto("44444444-4444-4444-8444-444444444444", "carl", "admin", "Carl", "Sagan")
 		mock := &mock.MockService{
-			CreateUserFunc: func(create handlers.UserCreate) (handlers.UserDto, error) {
+			CreateUserFunc: func(create models.UserCreate) (models.UserDto, error) {
 				return dto, nil
 			},
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
 
-		create := handlers.UserCreate{Username: "carl", Password: "sup3r-s3cure-pass!", Role: "admin"}
+		create := models.UserCreate{Username: "carl", Password: "sup3r-s3cure-pass!", Role: "admin"}
 		rec := doRequest(t, mux, http.MethodPost, "/users", adminToken, create)
 
 		require.Equal(t, http.StatusOK, rec.Code)
@@ -540,37 +540,37 @@ func TestPostUser(t *testing.T) {
 
 	t.Run("service reports an invalid password", func(t *testing.T) {
 		mock := &mock.MockService{
-			CreateUserFunc: func(handlers.UserCreate) (handlers.UserDto, error) {
-				return handlers.UserDto{}, handler_errors.ErrInvalidPassword
+			CreateUserFunc: func(models.UserCreate) (models.UserDto, error) {
+				return models.UserDto{}, handler_errors.ErrInvalidPassword
 			},
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
-		rec := doRequest(t, mux, http.MethodPost, "/users", adminToken, handlers.UserCreate{Username: "x", Password: "short", Role: "user"})
+		rec := doRequest(t, mux, http.MethodPost, "/users", adminToken, models.UserCreate{Username: "x", Password: "short", Role: "user"})
 		assertError(t, rec, http.StatusUnauthorized, "invalid_credentials")
 	})
 
 	t.Run("service reports an unknown role", func(t *testing.T) {
 		mock := &mock.MockService{
-			CreateUserFunc: func(handlers.UserCreate) (handlers.UserDto, error) {
-				return handlers.UserDto{}, handler_errors.ErrRoleNotFound
+			CreateUserFunc: func(models.UserCreate) (models.UserDto, error) {
+				return models.UserDto{}, handler_errors.ErrRoleNotFound
 			},
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
-		rec := doRequest(t, mux, http.MethodPost, "/users", adminToken, handlers.UserCreate{Username: "x", Password: "sup3r-s3cure-pass!", Role: "superadmin"})
+		rec := doRequest(t, mux, http.MethodPost, "/users", adminToken, models.UserCreate{Username: "x", Password: "sup3r-s3cure-pass!", Role: "superadmin"})
 		assertError(t, rec, http.StatusNotFound, "role_not_found")
 	})
 
 	t.Run("service reports a conflict", func(t *testing.T) {
 		mock := &mock.MockService{
-			CreateUserFunc: func(handlers.UserCreate) (handlers.UserDto, error) {
-				return handlers.UserDto{}, handler_errors.ErrResourceConflict
+			CreateUserFunc: func(models.UserCreate) (models.UserDto, error) {
+				return models.UserDto{}, handler_errors.ErrResourceConflict
 			},
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
-		rec := doRequest(t, mux, http.MethodPost, "/users", adminToken, handlers.UserCreate{Username: "taken", Password: "sup3r-s3cure-pass!", Role: "user"})
+		rec := doRequest(t, mux, http.MethodPost, "/users", adminToken, models.UserCreate{Username: "taken", Password: "sup3r-s3cure-pass!", Role: "user"})
 		assertError(t, rec, http.StatusConflict, "resource_conflict")
 	})
 }
@@ -581,7 +581,7 @@ func TestGetUserByUUID(t *testing.T) {
 	t.Run("returns the user", func(t *testing.T) {
 		dto := testDto(testUuid, "ada", "user", "Ada", "Lovelace")
 		mock := &mock.MockService{
-			GetUserFunc: func(strUuid string) (handlers.UserDto, error) {
+			GetUserFunc: func(strUuid string) (models.UserDto, error) {
 				return dto, nil
 			},
 		}
@@ -591,7 +591,7 @@ func TestGetUserByUUID(t *testing.T) {
 		rec := doRequest(t, mux, http.MethodGet, "/users/"+testUuid, adminToken, nil)
 
 		require.Equal(t, http.StatusOK, rec.Code, "expected the user to load; body: %s", rec.Body.String())
-		var got handlers.UserDto
+		var got models.UserDto
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
 		assert.Equal(t, dto, got)
 		assert.Equal(t, testUuid, mock.GetUserArg, "expected the path uuid to be forwarded to the service")
@@ -599,8 +599,8 @@ func TestGetUserByUUID(t *testing.T) {
 
 	t.Run("service reports a missing user", func(t *testing.T) {
 		mock := &mock.MockService{
-			GetUserFunc: func(string) (handlers.UserDto, error) {
-				return handlers.UserDto{}, handler_errors.ErrUserDoesNotExist
+			GetUserFunc: func(string) (models.UserDto, error) {
+				return models.UserDto{}, handler_errors.ErrUserDoesNotExist
 			},
 		}
 		mux := http.NewServeMux()
@@ -613,8 +613,8 @@ func TestGetUserByUUID(t *testing.T) {
 		// The real service rejects unparseable uuids with
 		// ErrInvalidRequest; the mock mirrors that behavior.
 		mock := &mock.MockService{
-			GetUserFunc: func(string) (handlers.UserDto, error) {
-				return handlers.UserDto{}, handler_errors.ErrInvalidRequest
+			GetUserFunc: func(string) (models.UserDto, error) {
+				return models.UserDto{}, handler_errors.ErrInvalidRequest
 			},
 		}
 		mux := http.NewServeMux()
@@ -630,18 +630,18 @@ func TestPatchUser(t *testing.T) {
 	t.Run("changes role and fields", func(t *testing.T) {
 		dto := testDto(testUuid, "ada", "admin", "Augusta", "King")
 		mock := &mock.MockService{
-			AdminModifyUserFunc: func(userUuid string, update handlers.AdminUserUpdate) (handlers.UserDto, error) {
+			AdminModifyUserFunc: func(userUuid string, update models.AdminUserUpdate) (models.UserDto, error) {
 				return dto, nil
 			},
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
 
-		update := handlers.AdminUserUpdate{Role: "admin", FirstName: "Augusta", LastName: "King"}
+		update := models.AdminUserUpdate{Role: "admin", FirstName: "Augusta", LastName: "King"}
 		rec := doRequest(t, mux, http.MethodPatch, "/users/"+testUuid, adminToken, update)
 
 		require.Equal(t, http.StatusOK, rec.Code, "expected the update to succeed; body: %s", rec.Body.String())
-		var got handlers.UserDto
+		var got models.UserDto
 		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
 		assert.Equal(t, dto, got)
 		assert.Equal(t, testUuid, mock.AdminModifyUserUuidArg, "expected the path uuid to be forwarded")
@@ -663,25 +663,25 @@ func TestPatchUser(t *testing.T) {
 
 	t.Run("service reports an unknown role", func(t *testing.T) {
 		mock := &mock.MockService{
-			AdminModifyUserFunc: func(string, handlers.AdminUserUpdate) (handlers.UserDto, error) {
-				return handlers.UserDto{}, handler_errors.ErrRoleNotFound
+			AdminModifyUserFunc: func(string, models.AdminUserUpdate) (models.UserDto, error) {
+				return models.UserDto{}, handler_errors.ErrRoleNotFound
 			},
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
-		rec := doRequest(t, mux, http.MethodPatch, "/users/"+testUuid, adminToken, handlers.AdminUserUpdate{Role: "superadmin"})
+		rec := doRequest(t, mux, http.MethodPatch, "/users/"+testUuid, adminToken, models.AdminUserUpdate{Role: "superadmin"})
 		assertError(t, rec, http.StatusNotFound, "role_not_found")
 	})
 
 	t.Run("service reports a conflict", func(t *testing.T) {
 		mock := &mock.MockService{
-			AdminModifyUserFunc: func(string, handlers.AdminUserUpdate) (handlers.UserDto, error) {
-				return handlers.UserDto{}, handler_errors.ErrResourceConflict
+			AdminModifyUserFunc: func(string, models.AdminUserUpdate) (models.UserDto, error) {
+				return models.UserDto{}, handler_errors.ErrResourceConflict
 			},
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
-		rec := doRequest(t, mux, http.MethodPatch, "/users/"+testUuid, adminToken, handlers.AdminUserUpdate{Username: "taken"})
+		rec := doRequest(t, mux, http.MethodPatch, "/users/"+testUuid, adminToken, models.AdminUserUpdate{Username: "taken"})
 		assertError(t, rec, http.StatusConflict, "resource_conflict")
 	})
 }
@@ -743,7 +743,7 @@ func TestPostUserPassword(t *testing.T) {
 		New(mock, mux)
 
 		rec := doRequest(t, mux, http.MethodPost, "/users/"+testUuid+"/password", adminToken,
-			handlers.PasswordChangeRequest{Password: "new-new-new-pass"})
+			models.PasswordChangeRequest{Password: "new-new-new-pass"})
 
 		require.Equal(t, http.StatusOK, rec.Code, "expected the password change to succeed; body: %s", rec.Body.String())
 		assert.Empty(t, rec.Body.String(), "expected no body on success")
@@ -772,7 +772,7 @@ func TestPostUserPassword(t *testing.T) {
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
-		rec := doRequest(t, mux, http.MethodPost, "/users/"+testUuid+"/password", adminToken, handlers.PasswordChangeRequest{Password: "short"})
+		rec := doRequest(t, mux, http.MethodPost, "/users/"+testUuid+"/password", adminToken, models.PasswordChangeRequest{Password: "short"})
 		assertError(t, rec, http.StatusUnauthorized, "invalid_credentials")
 	})
 
@@ -784,7 +784,7 @@ func TestPostUserPassword(t *testing.T) {
 		}
 		mux := http.NewServeMux()
 		New(mock, mux)
-		rec := doRequest(t, mux, http.MethodPost, "/users/"+uuid.NewV4().String()+"/password", adminToken, handlers.PasswordChangeRequest{Password: "valid-new-pass-1"})
+		rec := doRequest(t, mux, http.MethodPost, "/users/"+uuid.NewV4().String()+"/password", adminToken, models.PasswordChangeRequest{Password: "valid-new-pass-1"})
 		assertError(t, rec, http.StatusNotFound, "user_does_not_exist")
 	})
 }

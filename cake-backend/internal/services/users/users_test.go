@@ -2,7 +2,7 @@ package users
 
 import (
 	"context"
-	"efournierrobert/cake-backend/internal/handlers"
+	"efournierrobert/cake-backend/internal/handlers/models"
 	"log"
 	"os"
 	"strings"
@@ -194,7 +194,7 @@ func storedPasswordHash(t *testing.T, userUuid string) []byte {
 }
 
 // index finds the position of the dto with the given username, or -1.
-func index(all []handlers.UserDto, username string) int {
+func index(all []models.UserDto, username string) int {
 	for i, dto := range all {
 		if dto.Username == username {
 			return i
@@ -240,7 +240,7 @@ func TestModifyUser(t *testing.T) {
 		user := makeUser(t, prefixModify+"ada", "user", "Ada", "Lovelace", testPassword)
 		t.Cleanup(func() { deleteUsers(t, user) })
 
-		dto, err := svc.ModifyUser(user.Uuid, handlers.UserUpdate{
+		dto, err := svc.ModifyUser(user.Uuid, models.UserUpdate{
 			FirstName: "Augusta",
 			LastName:  "King",
 			Username:  prefixModify + "augusta",
@@ -258,7 +258,7 @@ func TestModifyUser(t *testing.T) {
 		user := makeUser(t, prefixModify+"grace", "user", "Grace", "Hopper", testPassword)
 		t.Cleanup(func() { deleteUsers(t, user) })
 
-		dto, err := svc.ModifyUser(user.Uuid, handlers.UserUpdate{FirstName: "Grace B"})
+		dto, err := svc.ModifyUser(user.Uuid, models.UserUpdate{FirstName: "Grace B"})
 		require.NoError(t, err, "expected ModifyUser to succeed")
 
 		assert.Equal(t, "Grace B", dto.FirstName)
@@ -270,7 +270,7 @@ func TestModifyUser(t *testing.T) {
 		user := makeUser(t, prefixModify+"empty", "user", "Ada", "Lovelace", testPassword)
 		t.Cleanup(func() { deleteUsers(t, user) })
 
-		dto, err := svc.ModifyUser(user.Uuid, handlers.UserUpdate{})
+		dto, err := svc.ModifyUser(user.Uuid, models.UserUpdate{})
 		require.NoError(t, err, "expected ModifyUser to succeed")
 
 		assert.Equal(t, "Ada", dto.FirstName)
@@ -279,12 +279,12 @@ func TestModifyUser(t *testing.T) {
 	})
 
 	t.Run("unknown uuid", func(t *testing.T) {
-		_, err := svc.ModifyUser(uuid.NewV4().String(), handlers.UserUpdate{FirstName: "X"})
+		_, err := svc.ModifyUser(uuid.NewV4().String(), models.UserUpdate{FirstName: "X"})
 		assert.ErrorIs(t, err, handler_errors.ErrUserDoesNotExist)
 	})
 
 	t.Run("malformed uuid", func(t *testing.T) {
-		_, err := svc.ModifyUser("nonsense", handlers.UserUpdate{FirstName: "X"})
+		_, err := svc.ModifyUser("nonsense", models.UserUpdate{FirstName: "X"})
 		assert.ErrorIs(t, err, handler_errors.ErrInvalidRequest)
 	})
 
@@ -293,7 +293,7 @@ func TestModifyUser(t *testing.T) {
 		mine := makeUser(t, prefixModify+"mine", "user", "Mine", "User", testPassword)
 		t.Cleanup(func() { deleteUsers(t, other, mine) })
 
-		_, err := svc.ModifyUser(mine.Uuid, handlers.UserUpdate{Username: prefixModify + "taken"})
+		_, err := svc.ModifyUser(mine.Uuid, models.UserUpdate{Username: prefixModify + "taken"})
 		assert.ErrorIs(t, err, handler_errors.ErrResourceConflict)
 	})
 }
@@ -305,7 +305,7 @@ func TestAdminModifyUser(t *testing.T) {
 		user := makeUser(t, prefixAdmin+"ada", "user", "Ada", "Lovelace", testPassword)
 		t.Cleanup(func() { deleteUsers(t, user) })
 
-		dto, err := svc.AdminModifyUser(user.Uuid, handlers.AdminUserUpdate{
+		dto, err := svc.AdminModifyUser(user.Uuid, models.AdminUserUpdate{
 			Role:      "admin",
 			FirstName: "Augusta",
 		})
@@ -320,7 +320,7 @@ func TestAdminModifyUser(t *testing.T) {
 		user := makeUser(t, prefixAdmin+"grace", "user", "Grace", "Hopper", testPassword)
 		t.Cleanup(func() { deleteUsers(t, user) })
 
-		dto, err := svc.AdminModifyUser(user.Uuid, handlers.AdminUserUpdate{Username: prefixAdmin + "grace2"})
+		dto, err := svc.AdminModifyUser(user.Uuid, models.AdminUserUpdate{Username: prefixAdmin + "grace2"})
 		require.NoError(t, err, "expected AdminModifyUser to succeed when the role is left empty")
 
 		assert.Equal(t, "user", dto.Role, "expected the role to be left unchanged")
@@ -328,12 +328,12 @@ func TestAdminModifyUser(t *testing.T) {
 	})
 
 	t.Run("unknown uuid", func(t *testing.T) {
-		_, err := svc.AdminModifyUser(uuid.NewV4().String(), handlers.AdminUserUpdate{Role: "admin"})
+		_, err := svc.AdminModifyUser(uuid.NewV4().String(), models.AdminUserUpdate{Role: "admin"})
 		assert.ErrorIs(t, err, handler_errors.ErrUserDoesNotExist)
 	})
 
 	t.Run("malformed uuid", func(t *testing.T) {
-		_, err := svc.AdminModifyUser("nope", handlers.AdminUserUpdate{Role: "admin"})
+		_, err := svc.AdminModifyUser("nope", models.AdminUserUpdate{Role: "admin"})
 		assert.ErrorIs(t, err, handler_errors.ErrInvalidRequest)
 	})
 
@@ -341,7 +341,7 @@ func TestAdminModifyUser(t *testing.T) {
 		user := makeUser(t, prefixAdmin+"role", "user", "Role", "Error", testPassword)
 		t.Cleanup(func() { deleteUsers(t, user) })
 
-		_, err := svc.AdminModifyUser(user.Uuid, handlers.AdminUserUpdate{Role: "superadmin"})
+		_, err := svc.AdminModifyUser(user.Uuid, models.AdminUserUpdate{Role: "superadmin"})
 		assert.ErrorIs(t, err, handler_errors.ErrRoleNotFound)
 	})
 
@@ -350,7 +350,7 @@ func TestAdminModifyUser(t *testing.T) {
 		mine := makeUser(t, prefixAdmin+"mine", "user", "Mine", "User", testPassword)
 		t.Cleanup(func() { deleteUsers(t, other, mine) })
 
-		_, err := svc.AdminModifyUser(mine.Uuid, handlers.AdminUserUpdate{Role: "admin", Username: prefixAdmin + "taken"})
+		_, err := svc.AdminModifyUser(mine.Uuid, models.AdminUserUpdate{Role: "admin", Username: prefixAdmin + "taken"})
 		assert.ErrorIs(t, err, handler_errors.ErrResourceConflict)
 	})
 }
@@ -420,7 +420,7 @@ func TestGetAllUsers(t *testing.T) {
 		assert.True(t, newestIdx < middleIdx, "expected newest (%d) to come before middle (%d)", newestIdx, middleIdx)
 		assert.True(t, middleIdx < oldestIdx, "expected middle (%d) to come before oldest (%d)", middleIdx, oldestIdx)
 
-		byUsername := map[string]handlers.UserDto{}
+		byUsername := map[string]models.UserDto{}
 		for _, dto := range all {
 			byUsername[dto.Username] = dto
 		}
@@ -443,7 +443,7 @@ func TestCreateUser(t *testing.T) {
 	svc := service()
 
 	t.Run("creates a user", func(t *testing.T) {
-		created, err := svc.CreateUser(handlers.UserCreate{
+		created, err := svc.CreateUser(models.UserCreate{
 			Username:  prefixCreate + "ada",
 			Password:  testPassword,
 			Role:      "user",
@@ -468,7 +468,7 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	t.Run("creates an admin", func(t *testing.T) {
-		created, err := svc.CreateUser(handlers.UserCreate{
+		created, err := svc.CreateUser(models.UserCreate{
 			Username: prefixCreate + "admin",
 			Password: testPassword,
 			Role:     "admin",
@@ -480,7 +480,7 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	t.Run("password too short", func(t *testing.T) {
-		_, err := svc.CreateUser(handlers.UserCreate{
+		_, err := svc.CreateUser(models.UserCreate{
 			Username: prefixCreate + "short",
 			Password: "short",
 			Role:     "user",
@@ -489,7 +489,7 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	t.Run("password too long", func(t *testing.T) {
-		_, err := svc.CreateUser(handlers.UserCreate{
+		_, err := svc.CreateUser(models.UserCreate{
 			Username: prefixCreate + "long",
 			Password: strings.Repeat("a", 73),
 			Role:     "user",
@@ -498,7 +498,7 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	t.Run("unknown role", func(t *testing.T) {
-		_, err := svc.CreateUser(handlers.UserCreate{
+		_, err := svc.CreateUser(models.UserCreate{
 			Username: prefixCreate + "norole",
 			Password: testPassword,
 			Role:     "superadmin",
@@ -507,7 +507,7 @@ func TestCreateUser(t *testing.T) {
 	})
 
 	t.Run("duplicate username", func(t *testing.T) {
-		first, err := svc.CreateUser(handlers.UserCreate{
+		first, err := svc.CreateUser(models.UserCreate{
 			Username: prefixCreate + "twin",
 			Password: testPassword,
 			Role:     "user",
@@ -515,7 +515,7 @@ func TestCreateUser(t *testing.T) {
 		require.NoError(t, err, "expected the first user to be created")
 		t.Cleanup(func() { deleteUsers(t, userRepo.User{Uuid: first.Uuid}) })
 
-		_, err = svc.CreateUser(handlers.UserCreate{
+		_, err = svc.CreateUser(models.UserCreate{
 			Username: prefixCreate + "twin",
 			Password: testPassword,
 			Role:     "admin",

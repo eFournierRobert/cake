@@ -1,8 +1,8 @@
 package users
 
 import (
-	"efournierrobert/cake-backend/internal/handlers"
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
+	"efournierrobert/cake-backend/internal/handlers/models"
 	"efournierrobert/cake-backend/internal/middleware/auth"
 	userService "efournierrobert/cake-backend/internal/services/users"
 	"encoding/json"
@@ -44,7 +44,7 @@ func New(svc userService.UserService, router *http.ServeMux) *Handler {
 // login handles POST /login and authenticates a user with username and password.
 // On success, it sets a JWT cookie and returns 200 OK.
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
-	var req handlers.LoginRequest
+	var req models.LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		handler_errors.WriteError(w, handler_errors.ErrInvalidRequest)
 		return
@@ -109,7 +109,7 @@ func (h *Handler) getCurrentUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) patchCurrentUser(w http.ResponseWriter, r *http.Request) {
 	currentUserUuid := r.Context().Value(auth.UserUuidKey).(string)
 
-	var req handlers.UserUpdate
+	var req models.UserUpdate
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		handler_errors.WriteError(w, handler_errors.ErrInvalidRequest)
 		return
@@ -137,7 +137,7 @@ func (h *Handler) patchCurrentUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) postCurrentUserPassword(w http.ResponseWriter, r *http.Request) {
 	currentUserUuid := r.Context().Value(auth.UserUuidKey).(string)
 
-	var req handlers.PasswordChangeRequest
+	var req models.PasswordChangeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		handler_errors.WriteError(w, handler_errors.ErrInvalidRequest)
 		return
@@ -173,7 +173,7 @@ func (h *Handler) getUsers(w http.ResponseWriter, r *http.Request) {
 
 // postUser handles POST /users and creates a new user (admin only).
 func (h *Handler) postUser(w http.ResponseWriter, r *http.Request) {
-	var req handlers.UserCreate
+	var req models.UserCreate
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		handler_errors.WriteError(w, handler_errors.ErrInvalidRequest)
 		return
@@ -222,7 +222,7 @@ func (h *Handler) getUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) patchUser(w http.ResponseWriter, r *http.Request) {
 	userUuid := r.PathValue("uuid")
 
-	var req handlers.AdminUserUpdate
+	var req models.AdminUserUpdate
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		handler_errors.WriteError(w, handler_errors.ErrInvalidRequest)
 		return
@@ -262,7 +262,7 @@ func (h *Handler) deleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) postUserPassword(w http.ResponseWriter, r *http.Request) {
 	userUuid := r.PathValue("uuid")
 
-	var req handlers.PasswordChangeRequest
+	var req models.PasswordChangeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		handler_errors.WriteError(w, handler_errors.ErrInvalidRequest)
 		return

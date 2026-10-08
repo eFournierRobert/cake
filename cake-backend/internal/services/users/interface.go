@@ -1,6 +1,8 @@
 package users
 
-import "efournierrobert/cake-backend/internal/handlers"
+import (
+	"efournierrobert/cake-backend/internal/handlers/models"
+)
 
 // UserService is the contract behind the API Users operations.
 // The HTTP handlers depend on this interface rather than the
@@ -10,25 +12,25 @@ type UserService interface {
 	// GetUser returns the user with the given uuid as a UserDto.
 	// It returns handler_errors.ErrUserDoesNotExist when no user
 	// matches.
-	GetUser(strUuid string) (handlers.UserDto, error)
+	GetUser(strUuid string) (models.UserDto, error)
 
 	// ModifyUser lets the identified user update their own first
 	// name, last name and username.
-	ModifyUser(currentUserUuid string, userUpdate handlers.UserUpdate) (handlers.UserDto, error)
+	ModifyUser(currentUserUuid string, userUpdate models.UserUpdate) (models.UserDto, error)
 
 	// AdminModifyUser is the admin variant of ModifyUser for any
 	// user identified by uuid: it also changes the user's role.
-	AdminModifyUser(userUuid string, userUpdate handlers.AdminUserUpdate) (handlers.UserDto, error)
+	AdminModifyUser(userUuid string, userUpdate models.AdminUserUpdate) (models.UserDto, error)
 
 	// ChangePassword updates the password of the identified user.
 	// The new password must be 12 to 72 characters long.
 	ChangePassword(currentUserUuid string, newPassword string) error
 
 	// GetAllUsers returns every user as a UserDto, newest first.
-	GetAllUsers() ([]handlers.UserDto, error)
+	GetAllUsers() ([]models.UserDto, error)
 
 	// CreateUser creates a user from a UserCreate request.
-	CreateUser(userCreateDto handlers.UserCreate) (handlers.UserDto, error)
+	CreateUser(userCreateDto models.UserCreate) (models.UserDto, error)
 
 	// DeleteUser removes the user with the given uuid.
 	DeleteUser(userUuid string) error
