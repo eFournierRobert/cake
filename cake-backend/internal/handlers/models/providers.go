@@ -29,5 +29,4 @@ type ProviderTestResponse struct {
 	Success   bool   `json:"success"`
 	LatencyMs *int64 `json:"latency_ms,omitempty"`
 	Error     string `json:"error,omitempty"`
-	Message   string `json:"message,omitempty"`
 }
