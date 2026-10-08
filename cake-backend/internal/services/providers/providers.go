@@ -45,7 +45,7 @@ func (s *Service) GetAllProviders() ([]models.ProviderDto, error) {
 func (s *Service) GetProvider(uuidStr string) (models.ProviderDto, error) {
 	realUuid, err := uuid.Parse(uuidStr)
 	if err != nil {
-		return models.ProviderDto{}, getAppErrorType(err)
+		return models.ProviderDto{}, handler_errors.ErrInvalidRequest
 	}
 
 	provider, err := s.repo.GetProvider(realUuid)
@@ -80,7 +80,7 @@ func (s *Service) CreateProvider(dto models.ProviderCreate) (models.ProviderDto,
 func (s *Service) ModifyProvider(uuidStr string, dto models.ProviderUpdate) (models.ProviderDto, error) {
 	realUuid, err := uuid.Parse(uuidStr)
 	if err != nil {
-		return models.ProviderDto{}, getAppErrorType(err)
+		return models.ProviderDto{}, handler_errors.ErrInvalidRequest
 	}
 
 	provider, err := s.repo.GetProvider(realUuid)
@@ -115,7 +115,7 @@ func (s *Service) ModifyProvider(uuidStr string, dto models.ProviderUpdate) (mod
 func (s *Service) DeleteProvider(uuidStr string) error {
 	realUuid, err := uuid.Parse(uuidStr)
 	if err != nil {
-		return getAppErrorType(err)
+		return handler_errors.ErrInvalidRequest
 	}
 
 	if err := s.repo.DeleteProvider(realUuid); err != nil {
