@@ -67,6 +67,7 @@ func (s *Service) CreateProvider(dto models.ProviderCreate) (models.ProviderDto,
 		Uuid:    uuid.New().String(),
 		Name:    dto.Name,
 		BaseUrl: strings.TrimSuffix(dto.BaseUrl, "/"),
+		ApiKey:  nil,
 	}
 
 	if len(dto.ApiKey) > 0 {
@@ -99,13 +100,17 @@ func (s *Service) ModifyProvider(uuidStr string, dto models.ProviderUpdate) (mod
 	}
 
 	if dto.ApiKey != nil {
-		apiKeyBlob, err := s.encryptor.Encrypt(*dto.ApiKey)
-		if err != nil {
-			log.Printf("ModifyProvider error: %s\n", fmt.Errorf("%w", err))
-			return models.ProviderDto{}, getAppErrorType(err)
-		}
+		if len(*dto.ApiKey) == 0 {
+			provider.ApiKey = nil
+		} else {
+			apiKeyBlob, err := s.encryptor.Encrypt(*dto.ApiKey)
+			if err != nil {
+				log.Printf("ModifyProvider error: %s\n", fmt.Errorf("%w", err))
+				return models.ProviderDto{}, getAppErrorType(err)
+			}
 
-		provider.ApiKey = apiKeyBlob
+			provider.ApiKey = apiKeyBlob
+		}
 	}
 
 	if len(dto.Name) > 0 {
@@ -149,13 +154,15 @@ func (s *Service) TestProvider(uuidStr string) (models.ProviderTestResponse, err
 		return models.ProviderTestResponse{}, getAppErrorType(err)
 	}
 
-	apiKey, err := s.encryptor.Decrypt(provider.ApiKey)
-	if err != nil {
-		log.Printf("TestProvider error: %s\n", fmt.Errorf("%w", err))
-		return models.ProviderTestResponse{}, getAppErrorType(err)
-	}
+	if len(provider.ApiKey) > 0 {
+		apiKey, err := s.encryptor.Decrypt(provider.ApiKey)
+		if err != nil {
+			log.Printf("TestProvider error: %s\n", fmt.Errorf("%w", err))
+			return models.ProviderTestResponse{}, getAppErrorType(err)
+		}
 
-	req.Header.Set("Authorization", "Bearer "+string(apiKey))
+		req.Header.Set("Authorization", "Bearer "+string(apiKey))
+	}
 
 	start := time.Now()
 
