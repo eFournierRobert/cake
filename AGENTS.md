@@ -8,7 +8,7 @@
 - `cake-backend/internal/services/users/` — business logic for the Users endpoints: orchestrates the users and roles repositories, hashes passwords with bcrypt, maps `repo_errors` to client-facing `handler_errors`, exposes methods per OpenAPI Users operation. Not wired into any HTTP handler yet (no handler is registered on the mux in `cmd/main.go`).
 - `cake-backend/internal/handlers/` — API-facing types: `handlers/users/` holds the request/response DTOs matching the OpenAPI schemas; `handler_errors/` holds the `AppError` values (code, client-facing message, HTTP status) that handlers return to clients.
 - `cake-backend/migrations/` — goose SQL migrations.
-- `cake-backend/doc/openapi.yaml` — the API contract (v1.0.0, self-declared provisional). Almost no endpoints are implemented yet; treat this doc as the spec to build to and keep it in sync with code.
+- `cake-backend/doc/openapi.yaml` — the API north star (v1.0.0, self-declared provisional). Almost no endpoints are implemented yet: treat this doc as a direction to build toward, **not** a strict contract. Drift between spec and code is expected while endpoints are being built, and the doc will be regenerated from the actual implemented API at the end — so don't chase perfect spec/code sync or change working code just to match spec details.
 - `docker/docker-compose.yaml` — only infra: MariaDB, db `cake`, user `cake-user`/`cake-user`, port `3306`.
 - Root `.env` is gitignored; `.env.example` is the template.
 

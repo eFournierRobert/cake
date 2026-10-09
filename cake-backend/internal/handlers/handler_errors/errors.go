@@ -61,6 +61,12 @@ var (
 		HttpStatus: http.StatusNotFound,
 	}
 
+	ErrProviderNotFound = AppError{
+		Code:       "provider_not_found",
+		Message:    "The requested provider does not exist",
+		HttpStatus: http.StatusNotFound,
+	}
+
 	// ErrInvalidPassword is returned when authentication credentials are invalid.
 	ErrInvalidPassword = AppError{
 		Code:       "invalid_credentials",
