@@ -1,3 +1,4 @@
+// Package providers implements the business logic behind the API Providers operations.
 package providers
 
 import (
@@ -18,12 +19,17 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Service implements the business logic behind the API Providers
+// operations. It stores provider api keys through the encryptor and
+// probes providers with the HTTP client.
 type Service struct {
 	repo       *providersRepo.Repository
 	encryptor  *encryptor.Encryptor
 	httpClient *http.Client
 }
 
+// New creates a new Provider service with the given database
+// connection and encryptor.
 func New(db *sqlx.DB, encryptor *encryptor.Encryptor) *Service {
 	return &Service{
 		repo:      providersRepo.New(db),
@@ -34,6 +40,8 @@ func New(db *sqlx.DB, encryptor *encryptor.Encryptor) *Service {
 	}
 }
 
+// GetAllProviders returns every provider as a ProviderDto, newest
+// first, with HasApiKey reporting whether an api key is stored.
 func (s *Service) GetAllProviders() ([]models.ProviderDto, error) {
 	providers, err := s.repo.GetAllProviders()
 	if err != nil {
@@ -49,6 +57,10 @@ func (s *Service) GetAllProviders() ([]models.ProviderDto, error) {
 	return dto, nil
 }
 
+// GetProvider returns the provider with the given uuid as a
+// ProviderDto. It returns handler_errors.ErrInvalidRequest if the
+// uuid is malformed, or handler_errors.ErrProviderNotFound if no
+// provider matches.
 func (s *Service) GetProvider(uuidStr string) (models.ProviderDto, error) {
 	provider, err := s.getProviderFromStrUuid(uuidStr)
 	if err != nil {
@@ -58,6 +70,11 @@ func (s *Service) GetProvider(uuidStr string) (models.ProviderDto, error) {
 	return providerToDto(provider), nil
 }
 
+// CreateProvider creates a provider from a ProviderCreate request.
+// The base URL must be an absolute http(s) URL and is stored with any
+// trailing slash trimmed; a non-empty api key is stored encrypted. It
+// returns handler_errors.ErrInvalidRequest when the base URL is not a
+// valid http(s) URL.
 func (s *Service) CreateProvider(dto models.ProviderCreate) (models.ProviderDto, error) {
 	if !isValidProviderURL(dto.BaseUrl) {
 		return models.ProviderDto{}, handler_errors.ErrInvalidRequest
@@ -89,6 +106,12 @@ func (s *Service) CreateProvider(dto models.ProviderCreate) (models.ProviderDto,
 	return providerToDto(newProvider), nil
 }
 
+// ModifyProvider updates the provider identified by uuid and returns
+// the updated provider as a ProviderDto. Empty name and base URL
+// fields are left unchanged, as is the stored api key when
+// dto.ApiKey is nil; a non-nil ApiKey replaces it, with an empty
+// string clearing it. A provided base URL must be an absolute http(s)
+// URL and is stored with any trailing slash trimmed.
 func (s *Service) ModifyProvider(uuidStr string, dto models.ProviderUpdate) (models.ProviderDto, error) {
 	provider, err := s.getProviderFromStrUuid(uuidStr)
 	if err != nil {
@@ -129,6 +152,10 @@ func (s *Service) ModifyProvider(uuidStr string, dto models.ProviderUpdate) (mod
 	return providerToDto(modifiedProvider), nil
 }
 
+// DeleteProvider removes the provider with the given uuid and, by
+// cascading, the model rows that reference it. It returns
+// handler_errors.ErrInvalidRequest if the uuid is malformed, or
+// handler_errors.ErrProviderNotFound if no provider matches.
 func (s *Service) DeleteProvider(uuidStr string) error {
 	realUuid, err := uuid.Parse(uuidStr)
 	if err != nil {
@@ -142,6 +169,12 @@ func (s *Service) DeleteProvider(uuidStr string) error {
 	return nil
 }
 
+// TestProvider probes the provider identified by uuid by sending GET
+// <base_url>/models, authenticated with the stored api key as a
+// bearer token when one is set, and reports the request latency and
+// whether the provider answered with a 2xx status. Connection
+// failures and non-2xx statuses are reported through the returned
+// ProviderTestResponse rather than as an error.
 func (s *Service) TestProvider(uuidStr string) (models.ProviderTestResponse, error) {
 	provider, err := s.getProviderFromStrUuid(uuidStr)
 	if err != nil {
@@ -227,6 +260,8 @@ func isValidProviderURL(s string) bool {
 	return u.Scheme == "http" || u.Scheme == "https"
 }
 
+// providerToDto converts a Provider entity to a ProviderDto,
+// reporting whether an api key is stored.
 func providerToDto(p providersRepo.Provider) models.ProviderDto {
 	return models.ProviderDto{
 		Uuid:      p.Uuid,
