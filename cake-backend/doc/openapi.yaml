@@ -630,8 +630,8 @@ paths:
       - $ref: '#/components/parameters/Uuid'
     put:
       tags: [Models]
-      summary: Update model
-      description: Administrator only. Replaces the editable model configuration.
+      summary: Update model activation
+      description: Administrator only. Updates whether the model is activated.
       requestBody:
         required: true
         content:
@@ -1137,15 +1137,8 @@ components:
     ModelUpdate:
       type: object
       additionalProperties: false
-      minProperties: 1
+      required: [activated]
       properties:
-        name:
-          type: string
-        description:
-          type: [string, 'null']
-        context_length:
-          type: integer
-          minimum: 0
         activated:
           type: boolean
 
