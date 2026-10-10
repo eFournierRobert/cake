@@ -4,7 +4,6 @@ import (
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
 	modelsHandler "efournierrobert/cake-backend/internal/handlers/models"
 	"efournierrobert/cake-backend/internal/repository/models"
-	"efournierrobert/cake-backend/internal/repository/providers"
 	"efournierrobert/cake-backend/internal/repository/repo_errors"
 	"errors"
 	"fmt"
@@ -15,14 +14,12 @@ import (
 )
 
 type Service struct {
-	repo          *models.Repository
-	providersRepo *providers.Repository
+	repo *models.Repository
 }
 
 func New(db *sqlx.DB) *Service {
 	return &Service{
-		repo:          models.New(db),
-		providersRepo: providers.New(db),
+		repo: models.New(db),
 	}
 }
 
