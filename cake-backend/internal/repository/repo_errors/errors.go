@@ -40,3 +40,10 @@ type ProviderNotFound struct{}
 func (e *ProviderNotFound) Error() string {
 	return "provider not found"
 }
+
+// ModelNotFound is returned when no model matches the targeted uuid.
+type ModelNotFound struct{}
+
+func (e *ModelNotFound) Error() string {
+	return "model not found"
+}

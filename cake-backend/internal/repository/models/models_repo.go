@@ -1,7 +1,9 @@
 package models
 
 import (
+	"database/sql"
 	"efournierrobert/cake-backend/internal/repository/repo_errors"
+	"errors"
 	"time"
 	"uuid"
 
@@ -117,4 +119,56 @@ func (r *Repository) DeleteModel(uuid uuid.UUID) error {
 	}
 
 	return nil
+}
+
+func (r *Repository) GetModel(uuid uuid.UUID) (Model, error) {
+	var model Model
+	err := r.conn.Get(&model,
+		`SELECT 
+    			models.id,
+    			models.uuid,
+    			models.name,
+    			models.description,
+    			models.context_length,
+    			models.provider_model_id,
+    			models.provider_id,
+    			models.created_at,
+    			models.activated
+				FROM models
+				WHERE models.uuid = ?`, uuid.String())
+	if errors.Is(err, sql.ErrNoRows) {
+		return model, &repo_errors.ModelNotFound{}
+	}
+	if err != nil {
+		return model, &repo_errors.InternalDbError{Err: err}
+	}
+
+	return model, nil
+}
+
+func (r *Repository) GetModelWithProviderUuid(uuid uuid.UUID) (ModelWithProviderUuid, error) {
+	var model ModelWithProviderUuid
+	err := r.conn.Get(&model,
+		`SELECT 
+    			models.id,
+    			models.uuid,
+    			models.name,
+    			models.description,
+    			models.context_length,
+    			models.provider_model_id,
+    			models.provider_id,
+    			models.created_at,
+    			models.activated,
+				providers.uuid AS 'provider_uuid'
+				FROM models
+				JOIN providers ON models.provider_id = providers.id
+				WHERE models.uuid = ?`, uuid.String())
+	if errors.Is(err, sql.ErrNoRows) {
+		return model, &repo_errors.ModelNotFound{}
+	}
+	if err != nil {
+		return model, &repo_errors.InternalDbError{Err: err}
+	}
+
+	return model, nil
 }

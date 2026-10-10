@@ -8,7 +8,7 @@ type ModelDto struct {
 	Description     *string   `json:"description"`
 	ContextLength   uint32    `json:"context_length"`
 	ProviderModelId string    `json:"provider_model_id"`
-	ProviderId      int       `json:"provider_id"`
+	ProviderUuid    string    `json:"provider_uuid"`
 	Activated       bool      `json:"activated"`
 	CreatedAt       time.Time `json:"created_at"`
 }
