@@ -86,21 +86,12 @@ func (r *Repository) UpdateModel(model Model) error {
 	return nil
 }
 
-func (r *Repository) DeleteProvider(uuid uuid.UUID) error {
-	results, err := r.conn.Exec(
+func (r *Repository) DeleteModel(uuid uuid.UUID) error {
+	_, err := r.conn.Exec(
 		`DELETE FROM models WHERE uuid = ?`,
 		uuid.String())
 	if err != nil {
 		return &repo_errors.InternalDbError{Err: err}
-	}
-
-	rowsAffected, err := results.RowsAffected()
-	if err != nil {
-		return &repo_errors.InternalDbError{Err: err}
-	}
-
-	if rowsAffected == 0 {
-		return &repo_errors.ProviderNotFound{}
 	}
 
 	return nil
