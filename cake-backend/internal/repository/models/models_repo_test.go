@@ -104,6 +104,14 @@ func sqlNullString(value string) sql.NullString {
 	return sql.NullString{String: value, Valid: true}
 }
 
+func providerUuidForModel(t *testing.T, model Model) string {
+	t.Helper()
+	var providerUUID string
+	err := testDB.Get(&providerUUID, "SELECT uuid FROM providers WHERE id = ?", model.ProviderId)
+	require.NoError(t, err, "failed to get the model provider uuid")
+	return providerUUID
+}
+
 func countModels(t *testing.T, query string, args ...any) int {
 	t.Helper()
 	var count int
@@ -181,7 +189,7 @@ func TestGetAllModelsContentAndOrdering(t *testing.T) {
 	require.NoError(t, err, "expected GetAllModels to succeed")
 	require.Len(t, all, 2, "expected GetAllModels to return the two fixture models")
 
-	byUUID := make(map[string]Model, len(all))
+	byUUID := make(map[string]ModelWithProviderUuid, len(all))
 	for _, model := range all {
 		byUUID[model.Uuid] = model
 	}
@@ -195,8 +203,10 @@ func TestGetAllModelsContentAndOrdering(t *testing.T) {
 	assert.Equal(t, older.ContextLength, olderEntry.ContextLength)
 	assert.Equal(t, older.ProviderModelId, olderEntry.ProviderModelId)
 	assert.Equal(t, older.ProviderId, olderEntry.ProviderId)
+	assert.Equal(t, providerUuidForModel(t, older), olderEntry.ProviderUuid)
 	assert.Positive(t, olderEntry.Id, "expected the auto-generated id to be returned")
 	assert.False(t, olderEntry.CreatedAt.IsZero(), "expected created_at to be returned")
+	assert.Equal(t, providerUuidForModel(t, newer), newerEntry.ProviderUuid)
 
 	assert.True(t, newerEntry.CreatedAt.After(olderEntry.CreatedAt),
 		"expected newer model's created_at (%v) to be after older model's created_at (%v)",
@@ -219,6 +229,7 @@ func TestGetAllActivatedModelsFiltersInactiveModels(t *testing.T) {
 	require.NoError(t, err, "expected GetAllActivatedModels to succeed")
 	require.Len(t, all, 1, "expected only activated models to be returned")
 	assert.Equal(t, active.Uuid, all[0].Uuid)
+	assert.Equal(t, providerUuidForModel(t, active), all[0].ProviderUuid)
 	assert.True(t, all[0].Activated)
 }
 

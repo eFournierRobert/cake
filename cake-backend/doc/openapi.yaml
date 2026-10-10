@@ -1112,7 +1112,7 @@ components:
 
     Model:
       type: object
-      required: [uuid, name, context_length, provider_model_id, provider_id, activated, created_at]
+      required: [uuid, name, context_length, provider_model_id, provider_uuid, activated, created_at]
       properties:
         uuid:
           type: string
@@ -1126,8 +1126,9 @@ components:
           minimum: 0
         provider_model_id:
           type: string
-        provider_id:
-          type: integer
+        provider_uuid:
+          type: string
+          format: uuid
         activated:
           type: boolean
         created_at:

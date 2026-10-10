@@ -17,3 +17,8 @@ type Model struct {
 	CreatedAt       time.Time      `db:"created_at"`
 	Activated       bool           `db:"activated"`
 }
+
+type ModelWithProviderUuid struct {
+	Model
+	ProviderUuid string `db:"provider_uuid"`
+}

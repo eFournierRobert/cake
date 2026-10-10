@@ -18,11 +18,22 @@ func New(db *sqlx.DB) *Repository {
 	}
 }
 
-func (r *Repository) GetAllModels() ([]Model, error) {
-	var models []Model
+func (r *Repository) GetAllModels() ([]ModelWithProviderUuid, error) {
+	var models []ModelWithProviderUuid
 	if err := r.conn.Select(&models,
-		`SELECT *
+		`SELECT 
+    			models.id,
+    			models.uuid,
+    			models.name,
+    			models.description,
+    			models.context_length,
+    			models.provider_model_id,
+    			models.provider_id,
+    			models.created_at,
+    			models.activated,
+    			providers.uuid AS 'provider_uuid'
 				FROM models
+				JOIN providers ON models.provider_id = providers.id
 				ORDER BY created_at DESC`); err != nil {
 		return nil, &repo_errors.InternalDbError{Err: err}
 	}
@@ -30,11 +41,22 @@ func (r *Repository) GetAllModels() ([]Model, error) {
 	return models, nil
 }
 
-func (r *Repository) GetAllActivatedModels() ([]Model, error) {
-	var models []Model
+func (r *Repository) GetAllActivatedModels() ([]ModelWithProviderUuid, error) {
+	var models []ModelWithProviderUuid
 	if err := r.conn.Select(&models,
-		`SELECT *
+		`SELECT 
+    			models.id,
+    			models.uuid,
+    			models.name,
+    			models.description,
+    			models.context_length,
+    			models.provider_model_id,
+    			models.provider_id,
+    			models.created_at,
+    			models.activated,
+    			providers.uuid AS 'provider_uuid'
 				FROM models
+				JOIN providers ON models.provider_id = providers.id
 				WHERE activated = TRUE
 				ORDER BY created_at DESC`); err != nil {
 		return nil, &repo_errors.InternalDbError{Err: err}
