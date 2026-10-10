@@ -36,7 +36,7 @@ const (
 
 // A 32-byte secret so aes.NewCipher accepts it and every encryption
 // in the tests round-trips.
-const testEncryptionKey = "test-only-encryption-secret-32b!"
+const testEncryptionKey = "fdd31810589601a271e437fca895fd0a08b1db3c1f40fa7eaf346a13e5c22f7a"
 
 var (
 	testDB        *sqlx.DB

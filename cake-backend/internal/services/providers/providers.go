@@ -54,6 +54,10 @@ func (s *Service) GetAllProviders() ([]models.ProviderDto, error) {
 		dto = append(dto, providerToDto(p))
 	}
 
+	if dto == nil {
+		dto = []models.ProviderDto{}
+	}
+
 	return dto, nil
 }
 
