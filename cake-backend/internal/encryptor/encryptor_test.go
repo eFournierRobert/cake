@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const testKey = "1234567890123456"
+const testKey = "04b150c41e1383e8f71bac36a24aabda1d60149cd56d99e73855ec79a99fc81e"
 
 func TestEncryptor_NewMissingSecret(t *testing.T) {
 	t.Setenv("ENCRYPTION_SECRET", "")
@@ -66,7 +66,7 @@ func TestEncryptor_DecryptWithWrongKey(t *testing.T) {
 	ciphertext, err := e.Encrypt("secret sauce")
 	require.NoError(t, err)
 
-	t.Setenv("ENCRYPTION_SECRET", "6543210987654321")
+	t.Setenv("ENCRYPTION_SECRET", "fdd31810589601a271e437fca895fd0a08b1db3c1f40fa7eaf346a13e5c22f7a")
 	eWrong, err := New()
 	require.NoError(t, err)
 	_, err = eWrong.Decrypt(ciphertext)

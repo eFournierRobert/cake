@@ -6,6 +6,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 )
@@ -21,7 +22,12 @@ type Encryptor struct {
 // environment variable. The secret must be a valid AES key size (16,
 // 24 or 32 bytes), otherwise aes.NewCipher rejects it.
 func New() (*Encryptor, error) {
-	key := []byte([]byte(os.Getenv("ENCRYPTION_SECRET")))
+	secret := os.Getenv("ENCRYPTION_SECRET")
+
+	key, err := hex.DecodeString(secret)
+	if err != nil {
+		return nil, err
+	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
