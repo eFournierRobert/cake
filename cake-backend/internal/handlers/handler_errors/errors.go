@@ -15,7 +15,7 @@ import (
 type AppError struct {
 	Code       string `json:"code"`
 	Message    string `json:"message"`
-	HttpStatus int
+	HttpStatus int    `json:"-"`
 }
 
 // Error implements the error interface for AppError.
