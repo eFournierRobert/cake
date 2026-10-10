@@ -30,3 +30,11 @@ type ProviderTestResponse struct {
 	LatencyMs *int64 `json:"latency_ms,omitempty"`
 	Error     string `json:"error,omitempty"`
 }
+
+type ProviderRefreshResult struct {
+	Uuid       string `json:"provider_uuid"`
+	Success    bool   `json:"success"`
+	Discovered int    `json:"discovered"`
+	Added      int    `json:"added"`
+	Error      string `json:"error"`
+}
