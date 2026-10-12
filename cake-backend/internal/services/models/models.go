@@ -107,7 +107,6 @@ func (s *Service) modelToDto(model models.ModelWithProviderUuid) modelsHandler.M
 		Uuid:            model.Uuid,
 		Name:            model.Name,
 		Description:     &model.Description.String,
-		ContextLength:   model.ContextLength,
 		ProviderModelId: model.ProviderModelId,
 		ProviderUuid:    model.ProviderUuid,
 		Activated:       model.Activated,

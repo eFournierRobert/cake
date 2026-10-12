@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"database/sql"
 	"efournierrobert/cake-backend/internal/repository/repo_errors"
 	"errors"
@@ -28,7 +29,6 @@ func (r *Repository) GetAllModels() ([]ModelWithProviderUuid, error) {
     			models.uuid,
     			models.name,
     			models.description,
-    			models.context_length,
     			models.provider_model_id,
     			models.provider_id,
     			models.created_at,
@@ -51,7 +51,6 @@ func (r *Repository) GetAllActivatedModels() ([]ModelWithProviderUuid, error) {
     			models.uuid,
     			models.name,
     			models.description,
-    			models.context_length,
     			models.provider_model_id,
     			models.provider_id,
     			models.created_at,
@@ -75,7 +74,6 @@ func (r *Repository) CreateModel(model Model) error {
                     uuid, 
                     name, 
                     description, 
-                    context_length, 
                     provider_model_id, 
                     provider_id, 
                     created_at) 
@@ -83,7 +81,6 @@ func (r *Repository) CreateModel(model Model) error {
                             :uuid,
                             :name,
                             :description,
-                            :context_length,
                             :provider_model_id,
                             :provider_id,
                             :created_at
@@ -129,7 +126,6 @@ func (r *Repository) GetModel(uuid uuid.UUID) (Model, error) {
     			models.uuid,
     			models.name,
     			models.description,
-    			models.context_length,
     			models.provider_model_id,
     			models.provider_id,
     			models.created_at,
@@ -154,7 +150,6 @@ func (r *Repository) GetModelWithProviderUuid(uuid uuid.UUID) (ModelWithProvider
     			models.uuid,
     			models.name,
     			models.description,
-    			models.context_length,
     			models.provider_model_id,
     			models.provider_id,
     			models.created_at,
@@ -171,4 +166,28 @@ func (r *Repository) GetModelWithProviderUuid(uuid uuid.UUID) (ModelWithProvider
 	}
 
 	return model, nil
+}
+
+func (r *Repository) UpsertModels(ctx context.Context, modelList []Model) (int64, error) {
+	result, err := r.conn.ExecContext(ctx, `INSERT OR IGNORE INTO models (
+    				uuid, 
+                    name,
+                    description,
+                    provider_model_id, 
+                    provider_id, 
+                    created_at,
+                    activated
+			) VALUES (
+			          ?, ?, ?, ?, ?, NOW(), FALSE
+			)`)
+	if err != nil {
+		return -1, &repo_errors.InternalDbError{Err: err}
+	}
+
+	added, err := result.RowsAffected()
+	if err != nil {
+		return -1, &repo_errors.InternalDbError{Err: err}
+	}
+
+	return added, nil
 }

@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"context"
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
 	"efournierrobert/cake-backend/internal/handlers/models"
 	providerService "efournierrobert/cake-backend/internal/services/providers"
@@ -104,7 +105,7 @@ func TestProviderEndpointsRequireAdminAuth(t *testing.T) {
 					return models.ProviderDto{}, nil
 				},
 				DeleteProviderFunc: func(string) error { t.Error("unexpected service call"); return nil },
-				TestProviderFunc: func(string) (models.ProviderTestResponse, error) {
+				TestProviderFunc: func(context.Context, string) (models.ProviderTestResponse, error) {
 					t.Error("unexpected service call")
 					return models.ProviderTestResponse{}, nil
 				},
@@ -232,7 +233,7 @@ func TestDeleteProvider(t *testing.T) {
 func TestPostProviderTest(t *testing.T) {
 	result := models.ProviderTestResponse{Success: false, Error: "provider returned HTTP 503"}
 	mock := &providerService.MockService{
-		TestProviderFunc: func(uuid string) (models.ProviderTestResponse, error) {
+		TestProviderFunc: func(_ context.Context, uuid string) (models.ProviderTestResponse, error) {
 			assert.Equal(t, testUuid, uuid)
 			return result, nil
 		},
@@ -246,6 +247,8 @@ func TestPostProviderTest(t *testing.T) {
 	var got models.ProviderTestResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
 	assert.Equal(t, result, got)
+	assert.NotNil(t, mock.TestProviderCtxArg)
+	assert.Equal(t, testUuid, mock.TestProviderUuidArg)
 }
 
 func TestProviderServiceErrorsAreWritten(t *testing.T) {

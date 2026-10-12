@@ -2,16 +2,17 @@
 package providers
 
 import (
+	"context"
 	"efournierrobert/cake-backend/internal/encryptor"
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
 	"efournierrobert/cake-backend/internal/handlers/models"
+	"efournierrobert/cake-backend/internal/oai"
 	modelsRepo "efournierrobert/cake-backend/internal/repository/models"
 	providersRepo "efournierrobert/cake-backend/internal/repository/providers"
 	"efournierrobert/cake-backend/internal/repository/repo_errors"
 	"errors"
 	"fmt"
 	"log"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -27,7 +28,7 @@ type Service struct {
 	repo       *providersRepo.Repository
 	modelsRepo *modelsRepo.Repository
 	encryptor  *encryptor.Encryptor
-	httpClient *http.Client
+	oai        *oai.OpenAi
 }
 
 // New creates a new Provider service with the given database
@@ -36,10 +37,7 @@ func New(db *sqlx.DB, encryptor *encryptor.Encryptor) *Service {
 	return &Service{
 		repo:      providersRepo.New(db),
 		encryptor: encryptor,
-
-		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		oai:       oai.New(),
 	}
 }
 
@@ -182,31 +180,25 @@ func (s *Service) DeleteProvider(uuidStr string) error {
 // whether the provider answered with a 2xx status. Connection
 // failures and non-2xx statuses are reported through the returned
 // ProviderTestResponse rather than as an error.
-func (s *Service) TestProvider(uuidStr string) (models.ProviderTestResponse, error) {
+func (s *Service) TestProvider(ctx context.Context, uuidStr string) (models.ProviderTestResponse, error) {
 	provider, err := s.getProviderFromStrUuid(uuidStr)
 	if err != nil {
 		return models.ProviderTestResponse{}, err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, provider.BaseUrl+"/models/count", nil)
-	if err != nil {
-		log.Printf("TestProvider error: %s\n", fmt.Errorf("%w", err))
-		return models.ProviderTestResponse{}, getAppErrorType(err)
-	}
+	var apiKey []byte
 
 	if len(provider.ApiKey) > 0 {
-		apiKey, err := s.encryptor.Decrypt(provider.ApiKey)
+		apiKey, err = s.encryptor.Decrypt(provider.ApiKey)
 		if err != nil {
 			log.Printf("TestProvider error: %s\n", fmt.Errorf("%w", err))
 			return models.ProviderTestResponse{}, getAppErrorType(err)
 		}
-
-		req.Header.Set("Authorization", "Bearer "+string(apiKey))
 	}
 
 	start := time.Now()
 
-	resp, err := s.httpClient.Do(req)
+	_, err = s.oai.GetModels(ctx, string(apiKey), provider.BaseUrl)
 
 	latencyMs := time.Since(start).Milliseconds()
 
@@ -218,15 +210,6 @@ func (s *Service) TestProvider(uuidStr string) (models.ProviderTestResponse, err
 			Error:     "error happened when testing the provider",
 		}, nil
 	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return models.ProviderTestResponse{
-			Success:   false,
-			LatencyMs: &latencyMs,
-			Error:     fmt.Sprintf("provider returned HTTP %d", resp.StatusCode),
-		}, nil
-	}
 
 	return models.ProviderTestResponse{
 		Success:   true,
@@ -235,47 +218,54 @@ func (s *Service) TestProvider(uuidStr string) (models.ProviderTestResponse, err
 	}, nil
 }
 
-func (s *Service) RefreshModelsForProvider(uuidStr string) (models.ProviderRefreshResult, error) {
+func (s *Service) RefreshModelsForProvider(ctx context.Context, uuidStr string) (models.ProviderRefreshResult, error) {
 	provider, err := s.getProviderFromStrUuid(uuidStr)
 	if err != nil {
 		return models.ProviderRefreshResult{}, err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, provider.BaseUrl+"/models", nil)
-	if err != nil {
-		log.Printf("RefreshModelsForProvider error: %s\n", fmt.Errorf("%w", err))
-		return models.ProviderRefreshResult{}, getAppErrorType(err)
-	}
+	var apiKey []byte
 
 	if len(provider.ApiKey) > 0 {
-		apiKey, err := s.encryptor.Decrypt(provider.ApiKey)
+		apiKey, err = s.encryptor.Decrypt(provider.ApiKey)
 		if err != nil {
-			log.Printf("RefreshModelsForProvider error: %s\n", fmt.Errorf("%w", err))
+			log.Printf("RefreshModelsForProvider error: %v\n", err)
 			return models.ProviderRefreshResult{}, getAppErrorType(err)
 		}
-
-		req.Header.Set("Authorization", "Bearer "+string(apiKey))
 	}
 
-	resp, err := s.httpClient.Do(req)
+	resp, err := s.oai.GetModels(ctx, string(apiKey), provider.BaseUrl)
 
 	if err != nil {
-		log.Printf("TestProvider error: %s\n", err)
+		log.Printf("RefreshModelsForProvider error: %v\n", err)
 		return models.ProviderRefreshResult{
 			Success: false,
 			Error:   "error happened when sending a request to the provider",
 		}, nil
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return models.ProviderRefreshResult{
-			Success: false,
-			Error:   fmt.Sprintf("provider returned HTTP %d", resp.StatusCode),
-		}, nil
+	var providerModelList []modelsRepo.Model
+	for _, m := range resp.Data {
+		providerModelList = append(providerModelList, modelsRepo.Model{
+			Uuid:            uuid.NewV4().String(),
+			ProviderModelId: m.ID,
+			Name:            m.ID,
+			ProviderId:      provider.Id,
+		})
 	}
 
-	// TODO Finish getting models from OpenAI compatible provider.
+	added, err := s.modelsRepo.UpsertModels(ctx, providerModelList)
+	if err != nil {
+		log.Printf("RefreshModelsForProvider error: %v\n", err)
+		return models.ProviderRefreshResult{}, getAppErrorType(err)
+	}
+
+	return models.ProviderRefreshResult{
+		Uuid:       provider.Uuid,
+		Success:    true,
+		Discovered: len(providerModelList),
+		Added:      int(added),
+	}, nil
 }
 
 // getProviderFromStrUuid parses a string UUID and retrieves the provider from

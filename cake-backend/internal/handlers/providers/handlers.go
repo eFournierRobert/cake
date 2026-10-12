@@ -131,7 +131,7 @@ func (h *Handler) deleteProvider(w http.ResponseWriter, r *http.Request) {
 // postProviderTest handles POST /providers/{uuid}/test and returns the
 // result of the provider connectivity check.
 func (h *Handler) postProviderTest(w http.ResponseWriter, r *http.Request) {
-	result, err := h.service.TestProvider(r.PathValue("uuid"))
+	result, err := h.service.TestProvider(r.Context(), r.PathValue("uuid"))
 	if err != nil {
 		handler_errors.WriteError(w, err)
 		return

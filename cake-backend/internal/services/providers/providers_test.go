@@ -555,7 +555,7 @@ func TestTestProvider(t *testing.T) {
 		provider := makeProvider(t, prefixTest+"ok", fake.url, "")
 		t.Cleanup(func() { deleteProviders(t, provider) })
 
-		res, err := svc.TestProvider(provider.Uuid)
+		res, err := svc.TestProvider(context.Background(), provider.Uuid)
 		require.NoError(t, err, "expected TestProvider to succeed")
 
 		assert.True(t, res.Success)
@@ -574,7 +574,7 @@ func TestTestProvider(t *testing.T) {
 		provider := makeProvider(t, prefixTest+"bearer", fake.url, "sk-live-12345")
 		t.Cleanup(func() { deleteProviders(t, provider) })
 
-		res, err := svc.TestProvider(provider.Uuid)
+		res, err := svc.TestProvider(context.Background(), provider.Uuid)
 		require.NoError(t, err, "expected TestProvider to succeed")
 		assert.True(t, res.Success)
 
@@ -588,7 +588,7 @@ func TestTestProvider(t *testing.T) {
 		provider := makeProvider(t, prefixTest+"status", fake.url, "")
 		t.Cleanup(func() { deleteProviders(t, provider) })
 
-		res, err := svc.TestProvider(provider.Uuid)
+		res, err := svc.TestProvider(context.Background(), provider.Uuid)
 		require.NoError(t, err, "expected TestProvider to report the failure through the response, not an error")
 
 		assert.False(t, res.Success)
@@ -606,7 +606,7 @@ func TestTestProvider(t *testing.T) {
 		provider := makeProvider(t, prefixTest+"down", unreachableUrl, "")
 		t.Cleanup(func() { deleteProviders(t, provider) })
 
-		res, err := svc.TestProvider(provider.Uuid)
+		res, err := svc.TestProvider(context.Background(), provider.Uuid)
 		require.NoError(t, err, "expected TestProvider to report the failure through the response, not an error")
 
 		assert.False(t, res.Success)
@@ -624,17 +624,17 @@ func TestTestProvider(t *testing.T) {
 			[]byte("not-a-valid-ciphertext"), provider.Uuid)
 		require.NoError(t, err, "failed to corrupt the stored api key")
 
-		_, err = svc.TestProvider(provider.Uuid)
+		_, err = svc.TestProvider(context.Background(), provider.Uuid)
 		assert.ErrorIs(t, err, handler_errors.ErrUnexpectedError)
 	})
 
 	t.Run("unknown uuid", func(t *testing.T) {
-		_, err := svc.TestProvider(uuid.NewV4().String())
+		_, err := svc.TestProvider(context.Background(), uuid.NewV4().String())
 		assert.ErrorIs(t, err, handler_errors.ErrProviderNotFound)
 	})
 
 	t.Run("malformed uuid", func(t *testing.T) {
-		_, err := svc.TestProvider("nonsense")
+		_, err := svc.TestProvider(context.Background(), "nonsense")
 		assert.ErrorIs(t, err, handler_errors.ErrInvalidRequest)
 	})
 }

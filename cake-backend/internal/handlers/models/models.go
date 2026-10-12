@@ -6,7 +6,6 @@ type ModelDto struct {
 	Uuid            string    `json:"uuid"`
 	Name            string    `json:"name"`
 	Description     *string   `json:"description"`
-	ContextLength   uint32    `json:"context_length"`
 	ProviderModelId string    `json:"provider_model_id"`
 	ProviderUuid    string    `json:"provider_uuid"`
 	Activated       bool      `json:"activated"`
