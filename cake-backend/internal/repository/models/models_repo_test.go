@@ -10,6 +10,7 @@ import (
 	"uuid"
 
 	"efournierrobert/cake-backend/internal/repository"
+	"efournierrobert/cake-backend/internal/repository/repo_errors"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -94,7 +95,6 @@ func makeModel(t *testing.T, name, providerModelID string) Model {
 		Uuid:            uuid.NewV4().String(),
 		Name:            name,
 		Description:     sqlNullString("Description for " + name),
-		ContextLength:   8192,
 		ProviderModelId: providerModelID,
 		ProviderId:      int(providerID),
 	}
@@ -102,6 +102,14 @@ func makeModel(t *testing.T, name, providerModelID string) Model {
 
 func sqlNullString(value string) sql.NullString {
 	return sql.NullString{String: value, Valid: true}
+}
+
+func providerUuidForModel(t *testing.T, model Model) string {
+	t.Helper()
+	var providerUUID string
+	err := testDB.Get(&providerUUID, "SELECT uuid FROM providers WHERE id = ?", model.ProviderId)
+	require.NoError(t, err, "failed to get the model provider uuid")
+	return providerUUID
 }
 
 func countModels(t *testing.T, query string, args ...any) int {
@@ -145,7 +153,6 @@ func TestCreateModel(t *testing.T) {
 	assert.Equal(t, model.Uuid, created.Uuid)
 	assert.Equal(t, model.Name, created.Name)
 	assert.Equal(t, model.Description, created.Description)
-	assert.Equal(t, model.ContextLength, created.ContextLength)
 	assert.Equal(t, model.ProviderModelId, created.ProviderModelId)
 	assert.Equal(t, model.ProviderId, created.ProviderId)
 	assert.False(t, created.CreatedAt.IsZero(), "expected created_at to be populated")
@@ -181,7 +188,7 @@ func TestGetAllModelsContentAndOrdering(t *testing.T) {
 	require.NoError(t, err, "expected GetAllModels to succeed")
 	require.Len(t, all, 2, "expected GetAllModels to return the two fixture models")
 
-	byUUID := make(map[string]Model, len(all))
+	byUUID := make(map[string]ModelWithProviderUuid, len(all))
 	for _, model := range all {
 		byUUID[model.Uuid] = model
 	}
@@ -192,11 +199,12 @@ func TestGetAllModelsContentAndOrdering(t *testing.T) {
 
 	assert.Equal(t, older.Name, olderEntry.Name)
 	assert.Equal(t, older.Description, olderEntry.Description)
-	assert.Equal(t, older.ContextLength, olderEntry.ContextLength)
 	assert.Equal(t, older.ProviderModelId, olderEntry.ProviderModelId)
 	assert.Equal(t, older.ProviderId, olderEntry.ProviderId)
+	assert.Equal(t, providerUuidForModel(t, older), olderEntry.ProviderUuid)
 	assert.Positive(t, olderEntry.Id, "expected the auto-generated id to be returned")
 	assert.False(t, olderEntry.CreatedAt.IsZero(), "expected created_at to be returned")
+	assert.Equal(t, providerUuidForModel(t, newer), newerEntry.ProviderUuid)
 
 	assert.True(t, newerEntry.CreatedAt.After(olderEntry.CreatedAt),
 		"expected newer model's created_at (%v) to be after older model's created_at (%v)",
@@ -219,6 +227,7 @@ func TestGetAllActivatedModelsFiltersInactiveModels(t *testing.T) {
 	require.NoError(t, err, "expected GetAllActivatedModels to succeed")
 	require.Len(t, all, 1, "expected only activated models to be returned")
 	assert.Equal(t, active.Uuid, all[0].Uuid)
+	assert.Equal(t, providerUuidForModel(t, active), all[0].ProviderUuid)
 	assert.True(t, all[0].Activated)
 }
 
@@ -240,8 +249,86 @@ func TestUpdateModel(t *testing.T) {
 	assert.Equal(t, model.Description, updated.Description)
 	assert.Equal(t, model.ProviderModelId, updated.ProviderModelId)
 	assert.Equal(t, model.Activated, updated.Activated)
-	assert.Equal(t, uint32(8192), updated.ContextLength, "expected untouched context_length to be preserved")
 	assert.Equal(t, model.ProviderId, updated.ProviderId, "expected untouched provider_id to be preserved")
+}
+
+func TestGetModel(t *testing.T) {
+	repo := New(testDB)
+	model := makeModel(t, "get-model", "provider-model-get")
+	require.NoError(t, repo.CreateModel(model))
+
+	got, err := repo.GetModel(uuid.MustParse(model.Uuid))
+	require.NoError(t, err)
+	assert.Equal(t, model.Uuid, got.Uuid)
+	assert.Equal(t, model.Name, got.Name)
+	assert.Equal(t, model.ProviderModelId, got.ProviderModelId)
+
+	_, err = repo.GetModel(uuid.NewV4())
+	var modelNotFound *repo_errors.ModelNotFound
+	assert.ErrorAs(t, err, &modelNotFound)
+}
+
+func TestGetModelWithProviderUuid(t *testing.T) {
+	repo := New(testDB)
+	model := makeModel(t, "get-model-provider", "provider-model-provider")
+	require.NoError(t, repo.CreateModel(model))
+
+	got, err := repo.GetModelWithProviderUuid(uuid.MustParse(model.Uuid))
+	require.NoError(t, err)
+	assert.Equal(t, model.Uuid, got.Uuid)
+	assert.Equal(t, providerUuidForModel(t, model), got.ProviderUuid)
+
+	_, err = repo.GetModelWithProviderUuid(uuid.NewV4())
+	var modelNotFound *repo_errors.ModelNotFound
+	assert.ErrorAs(t, err, &modelNotFound)
+}
+
+func TestUpsertModels(t *testing.T) {
+	repo := New(testDB)
+	first := makeModel(t, "upsert-first", "provider-model-upsert-first")
+	second := makeModel(t, "upsert-second", "provider-model-upsert-second")
+	rows := []Model{first, second}
+
+	added, err := repo.UpsertModels(context.Background(), rows)
+	require.NoError(t, err)
+	assert.EqualValues(t, 2, added)
+	assert.Equal(t, 1, countModels(t, "SELECT COUNT(*) FROM models WHERE provider_id = ?", first.ProviderId))
+	assert.Equal(t, 1, countModels(t, "SELECT COUNT(*) FROM models WHERE provider_id = ?", second.ProviderId))
+
+	// The unique provider/model key makes a subsequent discovery idempotent,
+	// and ignored duplicates must not overwrite user-controlled model fields.
+	_, err = testDB.Exec("UPDATE models SET activated = TRUE WHERE provider_id = ? AND provider_model_id = ?",
+		first.ProviderId, first.ProviderModelId)
+	require.NoError(t, err)
+	duplicate := first
+	duplicate.Uuid = uuid.NewV4().String()
+	duplicate.Name = "replacement name"
+	added, err = repo.UpsertModels(context.Background(), []Model{duplicate})
+	require.NoError(t, err)
+	assert.Zero(t, added)
+
+	var stored Model
+	err = testDB.Get(&stored, "SELECT * FROM models WHERE provider_id = ? AND provider_model_id = ?",
+		first.ProviderId, first.ProviderModelId)
+	require.NoError(t, err)
+	assert.Equal(t, first.Name, stored.Name)
+	assert.True(t, stored.Activated)
+}
+
+func TestUpsertModelsEmpty(t *testing.T) {
+	added, err := New(testDB).UpsertModels(context.Background(), nil)
+	require.NoError(t, err)
+	assert.Zero(t, added)
+}
+
+func TestUpsertModelsCanceledContext(t *testing.T) {
+	model := makeModel(t, "upsert-canceled", "provider-model-canceled")
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := New(testDB).UpsertModels(ctx, []Model{model})
+	var dbErr *repo_errors.InternalDbError
+	assert.ErrorAs(t, err, &dbErr)
 }
 
 func TestDeleteModel(t *testing.T) {
@@ -252,4 +339,8 @@ func TestDeleteModel(t *testing.T) {
 	require.NoError(t, repo.DeleteModel(uuid.MustParse(model.Uuid)), "expected model deletion to succeed")
 	assert.Equal(t, 0, countModels(t, "SELECT COUNT(*) FROM models WHERE uuid = ?", model.Uuid),
 		"expected the model row to be removed")
+
+	err := repo.DeleteModel(uuid.NewV4())
+	var modelNotFound *repo_errors.ModelNotFound
+	assert.ErrorAs(t, err, &modelNotFound)
 }

@@ -16,7 +16,6 @@ CREATE TABLE models (
     uuid CHAR(36) NOT NULL UNIQUE,
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    context_length INT UNSIGNED NOT NULL,
     provider_model_id VARCHAR(255) NOT NULL,
     provider_id INT NOT NULL,
     created_at DATETIME(6) NOT NULL,

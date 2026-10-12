@@ -67,6 +67,13 @@ var (
 		HttpStatus: http.StatusNotFound,
 	}
 
+	// ErrModelNotFound is returned when the requested model does not exist.
+	ErrModelNotFound = AppError{
+		Code:       "model_not_found",
+		Message:    "The requested model does not exist",
+		HttpStatus: http.StatusNotFound,
+	}
+
 	// ErrInvalidPassword is returned when authentication credentials are invalid.
 	ErrInvalidPassword = AppError{
 		Code:       "invalid_credentials",

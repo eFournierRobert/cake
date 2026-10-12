@@ -1,6 +1,9 @@
 package providers
 
-import "efournierrobert/cake-backend/internal/handlers/models"
+import (
+	"context"
+	"efournierrobert/cake-backend/internal/handlers/models"
+)
 
 // MockService is a hand-written test double for ProviderService, used by the
 // HTTP handler tests. Each method records the arguments it receives and
@@ -21,8 +24,16 @@ type MockService struct {
 	DeleteProviderFunc func(uuid string) error
 	DeleteProviderArg  string
 
-	TestProviderFunc func(uuid string) (models.ProviderTestResponse, error)
-	TestProviderArg  string
+	TestProviderFunc    func(ctx context.Context, uuid string) (models.ProviderTestResponse, error)
+	TestProviderCtxArg  context.Context
+	TestProviderUuidArg string
+
+	RefreshModelsForProviderFunc    func(ctx context.Context, uuid string) (models.ProviderRefreshResult, error)
+	RefreshModelsForProviderCtxArg  context.Context
+	RefreshModelsForProviderUuidArg string
+
+	RefreshModelsForAllProvidersFunc   func(ctx context.Context) (models.ProviderRefreshResponse, error)
+	RefreshModelsForAllProvidersCtxArg context.Context
 }
 
 var _ ProviderService = (*MockService)(nil)
@@ -67,10 +78,28 @@ func (m *MockService) DeleteProvider(uuid string) error {
 	return m.DeleteProviderFunc(uuid)
 }
 
-func (m *MockService) TestProvider(uuid string) (models.ProviderTestResponse, error) {
-	m.TestProviderArg = uuid
+func (m *MockService) TestProvider(ctx context.Context, uuid string) (models.ProviderTestResponse, error) {
+	m.TestProviderCtxArg = ctx
+	m.TestProviderUuidArg = uuid
 	if m.TestProviderFunc == nil {
 		return models.ProviderTestResponse{}, nil
 	}
-	return m.TestProviderFunc(uuid)
+	return m.TestProviderFunc(ctx, uuid)
+}
+
+func (m *MockService) RefreshModelsForProvider(ctx context.Context, uuid string) (models.ProviderRefreshResult, error) {
+	m.RefreshModelsForProviderCtxArg = ctx
+	m.RefreshModelsForProviderUuidArg = uuid
+	if m.RefreshModelsForProviderFunc == nil {
+		return models.ProviderRefreshResult{}, nil
+	}
+	return m.RefreshModelsForProviderFunc(ctx, uuid)
+}
+
+func (m *MockService) RefreshModelsForAllProviders(ctx context.Context) (models.ProviderRefreshResponse, error) {
+	m.RefreshModelsForAllProvidersCtxArg = ctx
+	if m.RefreshModelsForAllProvidersFunc == nil {
+		return models.ProviderRefreshResponse{}, nil
+	}
+	return m.RefreshModelsForAllProvidersFunc(ctx)
 }

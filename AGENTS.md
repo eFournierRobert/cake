@@ -3,19 +3,20 @@
 ## Layout
 
 - `cake-backend/` — the only code in this repo; Go module `efournierrobert/cake-backend` (go 1.27.1). Run all `go` commands from `cake-backend/`, never the repo root (root is not a module; `go build ./...` from root fails).
-- `cake-backend/cmd/main.go` — entrypoint: opens the DB, runs migrations, serves an (currently empty) HTTP mux on `:8080` (port is hardcoded).
-- `cake-backend/internal/repository/` — SQL layer via sqlx; one subpackage per domain (`users/` = user CRUD + credential lookup, `providers/` = provider CRUD, `roles/` = read access to `user_roles`), DB errors wrapped in `repo_errors`.
-- `cake-backend/internal/services/users/` — business logic for the Users endpoints: orchestrates the users and roles repositories, hashes passwords with bcrypt, maps `repo_errors` to client-facing `handler_errors`, exposes methods per OpenAPI Users operation. Not wired into any HTTP handler yet (no handler is registered on the mux in `cmd/main.go`).
-- `cake-backend/internal/handlers/` — API-facing types: `handlers/users/` holds the request/response DTOs matching the OpenAPI schemas; `handler_errors/` holds the `AppError` values (code, client-facing message, HTTP status) that handlers return to clients.
+- `cake-backend/cmd/main.go` — entrypoint: opens the DB, runs migrations, performs first-run admin setup, registers user and provider handlers, and serves HTTP on `:8080` (port is hardcoded).
+- `cake-backend/internal/repository/` — SQL layer via sqlx; one subpackage per domain (`users/` = user CRUD + credential lookup, `providers/` = provider CRUD, `models/` = model CRUD and catalog upserts, `roles/` = read access to `user_roles`), DB errors wrapped in `repo_errors`.
+- `cake-backend/internal/services/` — business logic by domain. `users/` orchestrates user and role repositories and hashes passwords; `providers/` handles provider CRUD, connectivity tests, and per-provider/all-provider model refresh; `models/` maps persisted models to API DTOs and implements model list/update/delete logic. Services map repository failures to client-facing `handler_errors`. The models service currently has no registered HTTP handler.
+- `cake-backend/internal/oai/` — minimal OpenAI-compatible HTTP client used to fetch provider model catalogs from `GET <base_url>/models`.
+- `cake-backend/internal/handlers/` — HTTP handlers and API-facing DTOs. `handlers/users/` and `handlers/providers/` register user and provider endpoints; `handlers/models/` contains DTOs (not model HTTP handlers); `handler_errors/` holds client-facing `AppError` values (code, message, HTTP status).
 - `cake-backend/migrations/` — goose SQL migrations.
-- `cake-backend/doc/openapi.yaml` — the API north star (v1.0.0, self-declared provisional). Almost no endpoints are implemented yet: treat this doc as a direction to build toward, **not** a strict contract. Drift between spec and code is expected while endpoints are being built, and the doc will be regenerated from the actual implemented API at the end — so don't chase perfect spec/code sync or change working code just to match spec details.
+- `cake-backend/doc/openapi.yaml` — the provisional API reference. Treat it as a direction to build toward, **not** a strict contract; drift between the spec and implemented endpoints is expected, and the doc will be regenerated from the implemented API at the end. Don't change working code solely to match provisional spec details.
 - `docker/docker-compose.yaml` — only infra: MariaDB, db `cake`, user `cake-user`/`cake-user`, port `3306`.
 - Root `.env` is gitignored; `.env.example` is the template.
 
 ## Setup & run
 
 1. `docker compose -f docker/docker-compose.yaml up -d` (or any reachable MariaDB with the same DSN).
-2. From `cake-backend/`: `go run ./cmd` with `DATABASE_URL="cake-user:cake-user@tcp(127.0.0.1:3306)/cake?parseTime=true"` set (the IDE run configs use exactly these env values).
+2. From `cake-backend/`: set `DATABASE_URL`, `JWT_SECRET`, and a hex-encoded AES key in `ENCRYPTION_SECRET` (16, 24, or 32 decoded bytes), then run `go run ./cmd`. The root `.env.example` shows the local values used by the IDE run configs.
 
 ## Gotchas
 
@@ -29,7 +30,7 @@
 ## Verification
 
 - Verify with `go build ./...` and `go vet ./...` from `cake-backend/`. Also run tests to make sure everything is working correctly.
-- Tests live in the repository packages (`users/`, `providers/`) plus `internal/services/users/` and `internal/handlers/users/` (mock-based, no DB), and use testcontainers: `go test ./...` spins up a real MariaDB container (Docker required) and runs migrations against it.
+- Tests cover the repositories, user/provider services, provider handlers, the OpenAI-compatible client, and model-service behavior. MariaDB-backed repository and service suites use testcontainers: `go test ./...` starts real MariaDB containers and runs migrations (Docker required); model-service and HTTP-client unit tests use in-memory mocks or `httptest` servers.
 
 ## Conventions
 

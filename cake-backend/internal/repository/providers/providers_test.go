@@ -83,16 +83,15 @@ func makeProvider(t *testing.T, name string) Provider {
 	}
 }
 
-// insertModel inserts a model row referencing the provider directly
-// through the test database, since no model repository exists yet.
-// It returns the model row's id.
+// insertModel inserts a model row referencing the provider directly through
+// the test database and returns the model row's id.
 func insertModel(t *testing.T, provider Provider) int {
 	t.Helper()
 
 	var modelID int
 	_, err := testDB.Exec(
-		"INSERT INTO models (uuid, name, context_length, provider_model_id, provider_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-		uuid.NewV4().String(), "gpt-test", 4096, "provider-model-id", provider.Id,
+		"INSERT INTO models (uuid, name, provider_model_id, provider_id, created_at) VALUES (?, ?, ?, ?, NOW())",
+		uuid.NewV4().String(), "gpt-test", "provider-model-id", provider.Id,
 	)
 	require.NoError(t, err, "failed to insert a model referencing the provider")
 	err = testDB.QueryRow(

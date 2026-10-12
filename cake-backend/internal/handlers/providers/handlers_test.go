@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"context"
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
 	"efournierrobert/cake-backend/internal/handlers/models"
 	providerService "efournierrobert/cake-backend/internal/services/providers"
@@ -78,10 +79,12 @@ func TestProviderEndpointsRequireAdminAuth(t *testing.T) {
 	}{
 		{http.MethodGet, "/providers"},
 		{http.MethodPost, "/providers"},
+		{http.MethodPost, "/providers/models/refresh"},
 		{http.MethodGet, "/providers/" + testUuid},
 		{http.MethodPut, "/providers/" + testUuid},
 		{http.MethodDelete, "/providers/" + testUuid},
 		{http.MethodPost, "/providers/" + testUuid + "/test"},
+		{http.MethodPost, "/providers/" + testUuid + "/models/refresh"},
 	}
 
 	for _, route := range routes {
@@ -104,7 +107,7 @@ func TestProviderEndpointsRequireAdminAuth(t *testing.T) {
 					return models.ProviderDto{}, nil
 				},
 				DeleteProviderFunc: func(string) error { t.Error("unexpected service call"); return nil },
-				TestProviderFunc: func(string) (models.ProviderTestResponse, error) {
+				TestProviderFunc: func(context.Context, string) (models.ProviderTestResponse, error) {
 					t.Error("unexpected service call")
 					return models.ProviderTestResponse{}, nil
 				},
@@ -232,7 +235,7 @@ func TestDeleteProvider(t *testing.T) {
 func TestPostProviderTest(t *testing.T) {
 	result := models.ProviderTestResponse{Success: false, Error: "provider returned HTTP 503"}
 	mock := &providerService.MockService{
-		TestProviderFunc: func(uuid string) (models.ProviderTestResponse, error) {
+		TestProviderFunc: func(_ context.Context, uuid string) (models.ProviderTestResponse, error) {
 			assert.Equal(t, testUuid, uuid)
 			return result, nil
 		},
@@ -246,6 +249,57 @@ func TestPostProviderTest(t *testing.T) {
 	var got models.ProviderTestResponse
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
 	assert.Equal(t, result, got)
+	assert.NotNil(t, mock.TestProviderCtxArg)
+	assert.Equal(t, testUuid, mock.TestProviderUuidArg)
+}
+
+func TestPostProviderModelsRefresh(t *testing.T) {
+	result := models.ProviderRefreshResult{
+		Uuid:       testUuid,
+		Success:    true,
+		Discovered: 5,
+		Added:      2,
+	}
+	mock := &providerService.MockService{
+		RefreshModelsForProviderFunc: func(_ context.Context, uuid string) (models.ProviderRefreshResult, error) {
+			assert.Equal(t, testUuid, uuid)
+			return result, nil
+		},
+	}
+	mux := http.NewServeMux()
+	New(mock, mux)
+
+	rec := doRequest(t, mux, http.MethodPost, "/providers/"+testUuid+"/models/refresh", testToken(t, "admin"), "")
+	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	var got models.ProviderRefreshResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+	assert.Equal(t, result, got)
+	assert.NotNil(t, mock.RefreshModelsForProviderCtxArg)
+	assert.Equal(t, testUuid, mock.RefreshModelsForProviderUuidArg)
+}
+
+func TestPostAllProviderModelsRefresh(t *testing.T) {
+	result := models.ProviderRefreshResponse{
+		Results: []models.ProviderRefreshResult{
+			{Uuid: testUuid, Success: true, Discovered: 5, Added: 2},
+		},
+	}
+	mock := &providerService.MockService{
+		RefreshModelsForAllProvidersFunc: func(_ context.Context) (models.ProviderRefreshResponse, error) {
+			return result, nil
+		},
+	}
+	mux := http.NewServeMux()
+	New(mock, mux)
+
+	rec := doRequest(t, mux, http.MethodPost, "/providers/models/refresh", testToken(t, "admin"), "")
+	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	var got models.ProviderRefreshResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+	assert.Equal(t, result, got)
+	assert.NotNil(t, mock.RefreshModelsForAllProvidersCtxArg)
 }
 
 func TestProviderServiceErrorsAreWritten(t *testing.T) {
@@ -272,4 +326,30 @@ func TestProviderServiceErrorsAreWritten(t *testing.T) {
 			}(), test.code)
 		})
 	}
+}
+
+func TestProviderRefreshServiceErrorsAreWritten(t *testing.T) {
+	t.Run("single provider refresh", func(t *testing.T) {
+		mock := &providerService.MockService{
+			RefreshModelsForProviderFunc: func(context.Context, string) (models.ProviderRefreshResult, error) {
+				return models.ProviderRefreshResult{}, handler_errors.ErrProviderNotFound
+			},
+		}
+		mux := http.NewServeMux()
+		New(mock, mux)
+		rec := doRequest(t, mux, http.MethodPost, "/providers/"+testUuid+"/models/refresh", testToken(t, "admin"), "")
+		assertError(t, rec, http.StatusNotFound, "provider_not_found")
+	})
+
+	t.Run("refresh all", func(t *testing.T) {
+		mock := &providerService.MockService{
+			RefreshModelsForAllProvidersFunc: func(context.Context) (models.ProviderRefreshResponse, error) {
+				return models.ProviderRefreshResponse{}, errors.New("unexpected failure")
+			},
+		}
+		mux := http.NewServeMux()
+		New(mock, mux)
+		rec := doRequest(t, mux, http.MethodPost, "/providers/models/refresh", testToken(t, "admin"), "")
+		assertError(t, rec, http.StatusInternalServerError, "unexpected_error")
+	})
 }
