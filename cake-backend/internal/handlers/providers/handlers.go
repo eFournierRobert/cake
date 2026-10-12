@@ -22,6 +22,7 @@ func New(svc providerService.ProviderService, router *http.ServeMux) *Handler {
 
 	router.HandleFunc("GET /providers", auth.RequireAdminAuth(h.getProviders))
 	router.HandleFunc("POST /providers", auth.RequireAdminAuth(h.postProvider))
+	router.HandleFunc("POST /providers/models/refresh", auth.RequireAdminAuth(h.postAllProviderModelsRefresh))
 	router.HandleFunc("GET /providers/{uuid}", auth.RequireAdminAuth(h.getProvider))
 	router.HandleFunc("PUT /providers/{uuid}", auth.RequireAdminAuth(h.putProvider))
 	router.HandleFunc("DELETE /providers/{uuid}", auth.RequireAdminAuth(h.deleteProvider))
@@ -153,6 +154,26 @@ func (h *Handler) postProviderTest(w http.ResponseWriter, r *http.Request) {
 // and synchronizes the provider's model catalog.
 func (h *Handler) postProviderModelsRefresh(w http.ResponseWriter, r *http.Request) {
 	result, err := h.service.RefreshModelsForProvider(r.Context(), r.PathValue("uuid"))
+	if err != nil {
+		handler_errors.WriteError(w, err)
+		return
+	}
+
+	responseBody, err := json.Marshal(result)
+	if err != nil {
+		handler_errors.WriteError(w, handler_errors.ErrUnexpectedError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(responseBody)
+}
+
+// postAllProviderModelsRefresh handles POST /providers/models/refresh and
+// synchronizes the model catalogs for all providers.
+func (h *Handler) postAllProviderModelsRefresh(w http.ResponseWriter, r *http.Request) {
+	result, err := h.service.RefreshModelsForAllProviders(r.Context())
 	if err != nil {
 		handler_errors.WriteError(w, err)
 		return

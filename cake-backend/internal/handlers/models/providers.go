@@ -38,3 +38,7 @@ type ProviderRefreshResult struct {
 	Added      int    `json:"added"`
 	Error      string `json:"error"`
 }
+
+type ProviderRefreshResponse struct {
+	Results []ProviderRefreshResult `json:"results"`
+}

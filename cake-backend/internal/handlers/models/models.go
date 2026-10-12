@@ -13,5 +13,7 @@ type ModelDto struct {
 }
 
 type ModelUpdate struct {
-	Activated bool `json:"activated"`
+	Name        string  `json:"name"`
+	Description *string `json:"description"`
+	Activated   bool    `json:"activated"`
 }

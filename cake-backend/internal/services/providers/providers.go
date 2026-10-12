@@ -269,6 +269,28 @@ func (s *Service) RefreshModelsForProvider(ctx context.Context, uuidStr string) 
 	}, nil
 }
 
+// RefreshModelsForAllProviders refreshes the model catalog for every provider
+// and returns one result per provider. Individual provider connection failures
+// are represented in their result; repository/service errors are returned.
+func (s *Service) RefreshModelsForAllProviders(ctx context.Context) (models.ProviderRefreshResponse, error) {
+	providers, err := s.repo.GetAllProviders()
+	if err != nil {
+		log.Printf("RefreshModelsForAllProviders error: %v\n", err)
+		return models.ProviderRefreshResponse{}, getAppErrorType(err)
+	}
+
+	results := make([]models.ProviderRefreshResult, 0, len(providers))
+	for _, provider := range providers {
+		result, err := s.RefreshModelsForProvider(ctx, provider.Uuid)
+		if err != nil {
+			return models.ProviderRefreshResponse{}, err
+		}
+		results = append(results, result)
+	}
+
+	return models.ProviderRefreshResponse{Results: results}, nil
+}
+
 // getProviderFromStrUuid parses a string UUID and retrieves the provider from
 // the repository. It returns handler_errors.ErrInvalidRequest if the UUID is
 // invalid, or handler_errors.ErrProviderNotFound if no provider is found.

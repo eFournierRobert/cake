@@ -1,6 +1,7 @@
 package models
 
 import (
+	"database/sql"
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
 	modelsHandler "efournierrobert/cake-backend/internal/handlers/models"
 	"efournierrobert/cake-backend/internal/repository/models"
@@ -61,14 +62,23 @@ func (s *Service) GetAllActivatedModels() ([]modelsHandler.ModelDto, error) {
 	return dto, nil
 }
 
-func (s *Service) UpdateModel(strUuid string, activated bool) (modelsHandler.ModelDto, error) {
+func (s *Service) UpdateModel(strUuid string, modelUpdate modelsHandler.ModelUpdate) (modelsHandler.ModelDto, error) {
 	model, err := s.getModelFromStrUuid(strUuid)
 	if err != nil {
 		return modelsHandler.ModelDto{}, err
 	}
 
-	if activated != model.Activated {
-		model.Activated = activated
+	if modelUpdate.Activated != model.Activated {
+		model.Activated = modelUpdate.Activated
+	}
+	if len(modelUpdate.Name) != 0 {
+		model.Name = modelUpdate.Name
+	}
+	if modelUpdate.Description != nil && len(*modelUpdate.Description) != 0 {
+		model.Description = sql.NullString{
+			String: *modelUpdate.Description,
+			Valid:  true,
+		}
 	}
 
 	err = s.repo.UpdateModel(model)

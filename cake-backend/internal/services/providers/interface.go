@@ -15,6 +15,7 @@ type ProviderService interface {
 	DeleteProvider(uuid string) error
 	TestProvider(ctx context.Context, uuid string) (models.ProviderTestResponse, error)
 	RefreshModelsForProvider(ctx context.Context, uuid string) (models.ProviderRefreshResult, error)
+	RefreshModelsForAllProviders(ctx context.Context) (models.ProviderRefreshResponse, error)
 }
 
 var _ ProviderService = (*Service)(nil)
