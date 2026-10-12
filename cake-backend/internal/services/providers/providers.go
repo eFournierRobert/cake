@@ -35,9 +35,10 @@ type Service struct {
 // connection and encryptor.
 func New(db *sqlx.DB, encryptor *encryptor.Encryptor) *Service {
 	return &Service{
-		repo:      providersRepo.New(db),
-		encryptor: encryptor,
-		oai:       oai.New(),
+		repo:       providersRepo.New(db),
+		modelsRepo: modelsRepo.New(db),
+		encryptor:  encryptor,
+		oai:        oai.New(),
 	}
 }
 

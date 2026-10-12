@@ -169,7 +169,7 @@ func (r *Repository) GetModelWithProviderUuid(uuid uuid.UUID) (ModelWithProvider
 }
 
 func (r *Repository) UpsertModels(ctx context.Context, modelList []Model) (int64, error) {
-	result, err := r.conn.ExecContext(ctx, `INSERT OR IGNORE INTO models (
+	result, err := r.conn.NamedExecContext(ctx, `INSERT IGNORE INTO models (
     				uuid, 
                     name,
                     description,
@@ -178,8 +178,8 @@ func (r *Repository) UpsertModels(ctx context.Context, modelList []Model) (int64
                     created_at,
                     activated
 			) VALUES (
-			          ?, ?, ?, ?, ?, NOW(), FALSE
-			)`)
+			          :uuid, :name, :description, :provider_model_id, :provider_id, NOW(), FALSE
+			)`, modelList)
 	if err != nil {
 		return -1, &repo_errors.InternalDbError{Err: err}
 	}

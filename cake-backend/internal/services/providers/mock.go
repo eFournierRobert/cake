@@ -27,6 +27,10 @@ type MockService struct {
 	TestProviderFunc    func(ctx context.Context, uuid string) (models.ProviderTestResponse, error)
 	TestProviderCtxArg  context.Context
 	TestProviderUuidArg string
+
+	RefreshModelsForProviderFunc    func(ctx context.Context, uuid string) (models.ProviderRefreshResult, error)
+	RefreshModelsForProviderCtxArg  context.Context
+	RefreshModelsForProviderUuidArg string
 }
 
 var _ ProviderService = (*MockService)(nil)
@@ -78,4 +82,13 @@ func (m *MockService) TestProvider(ctx context.Context, uuid string) (models.Pro
 		return models.ProviderTestResponse{}, nil
 	}
 	return m.TestProviderFunc(ctx, uuid)
+}
+
+func (m *MockService) RefreshModelsForProvider(ctx context.Context, uuid string) (models.ProviderRefreshResult, error) {
+	m.RefreshModelsForProviderCtxArg = ctx
+	m.RefreshModelsForProviderUuidArg = uuid
+	if m.RefreshModelsForProviderFunc == nil {
+		return models.ProviderRefreshResult{}, nil
+	}
+	return m.RefreshModelsForProviderFunc(ctx, uuid)
 }

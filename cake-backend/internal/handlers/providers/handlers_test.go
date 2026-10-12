@@ -83,6 +83,7 @@ func TestProviderEndpointsRequireAdminAuth(t *testing.T) {
 		{http.MethodPut, "/providers/" + testUuid},
 		{http.MethodDelete, "/providers/" + testUuid},
 		{http.MethodPost, "/providers/" + testUuid + "/test"},
+		{http.MethodPost, "/providers/" + testUuid + "/models/refresh"},
 	}
 
 	for _, route := range routes {
@@ -249,6 +250,32 @@ func TestPostProviderTest(t *testing.T) {
 	assert.Equal(t, result, got)
 	assert.NotNil(t, mock.TestProviderCtxArg)
 	assert.Equal(t, testUuid, mock.TestProviderUuidArg)
+}
+
+func TestPostProviderModelsRefresh(t *testing.T) {
+	result := models.ProviderRefreshResult{
+		Uuid:       testUuid,
+		Success:    true,
+		Discovered: 5,
+		Added:      2,
+	}
+	mock := &providerService.MockService{
+		RefreshModelsForProviderFunc: func(_ context.Context, uuid string) (models.ProviderRefreshResult, error) {
+			assert.Equal(t, testUuid, uuid)
+			return result, nil
+		},
+	}
+	mux := http.NewServeMux()
+	New(mock, mux)
+
+	rec := doRequest(t, mux, http.MethodPost, "/providers/"+testUuid+"/models/refresh", testToken(t, "admin"), "")
+	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	var got models.ProviderRefreshResult
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+	assert.Equal(t, result, got)
+	assert.NotNil(t, mock.RefreshModelsForProviderCtxArg)
+	assert.Equal(t, testUuid, mock.RefreshModelsForProviderUuidArg)
 }
 
 func TestProviderServiceErrorsAreWritten(t *testing.T) {
