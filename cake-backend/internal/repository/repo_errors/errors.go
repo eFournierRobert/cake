@@ -47,3 +47,10 @@ type ModelNotFound struct{}
 func (e *ModelNotFound) Error() string {
 	return "model not found"
 }
+
+// SpaceNotFound is returned when no space matches the targeted uuid.
+type SpaceNotFound struct{}
+
+func (e *SpaceNotFound) Error() string {
+	return "space not found"
+}
