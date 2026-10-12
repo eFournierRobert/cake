@@ -26,12 +26,13 @@ import (
 // Each test seeds providers with a distinct name prefix, so tests
 // never collide with each other and only clean up their own rows.
 const (
-	prefixList   = "svc-list-"
-	prefixGet    = "svc-get-"
-	prefixCreate = "svc-create-"
-	prefixModify = "svc-modify-"
-	prefixDelete = "svc-delete-"
-	prefixTest   = "svc-test-"
+	prefixList    = "svc-list-"
+	prefixGet     = "svc-get-"
+	prefixCreate  = "svc-create-"
+	prefixModify  = "svc-modify-"
+	prefixDelete  = "svc-delete-"
+	prefixTest    = "svc-test-"
+	prefixRefresh = "svc-refresh-"
 )
 
 // A 32-byte secret so aes.NewCipher accepts it and every encryption
@@ -150,16 +151,15 @@ func deleteProviders(t *testing.T, ps ...providersRepo.Provider) {
 	}
 }
 
-// insertModel inserts a model row referencing the provider directly
-// through the test database, since no model repository exists yet.
-// It returns the model row's id.
+// insertModel inserts a model row referencing the provider directly through
+// the test database and returns the model row's id.
 func insertModel(t *testing.T, provider providersRepo.Provider) int {
 	t.Helper()
 
 	var modelID int
 	_, err := testDB.Exec(
-		"INSERT INTO models (uuid, name, context_length, provider_model_id, provider_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())",
-		uuid.NewV4().String(), "gpt-test", 4096, "provider-model-id", provider.Id,
+		"INSERT INTO models (uuid, name, provider_model_id, provider_id, created_at) VALUES (?, ?, ?, ?, NOW())",
+		uuid.NewV4().String(), "gpt-test", "provider-model-id", provider.Id,
 	)
 	require.NoError(t, err, "failed to insert a model referencing the provider")
 	err = testDB.QueryRow(
@@ -221,6 +221,10 @@ type fakeProvider struct {
 // newFakeProvider starts an httptest server answering every request
 // with the given status code. It is closed when the test ends.
 func newFakeProvider(t *testing.T, status int) *fakeProvider {
+	return newFakeProviderWithBody(t, status, `{"object":"list","data":[]}`)
+}
+
+func newFakeProviderWithBody(t *testing.T, status int, body string) *fakeProvider {
 	t.Helper()
 
 	fake := &fakeProvider{}
@@ -231,6 +235,7 @@ func newFakeProvider(t *testing.T, status int) *fakeProvider {
 		fake.authorization = r.Header.Get("Authorization")
 		fake.mu.Unlock()
 		w.WriteHeader(status)
+		_, _ = w.Write([]byte(body))
 	}))
 	t.Cleanup(server.Close)
 	fake.url = server.URL
@@ -583,7 +588,7 @@ func TestTestProvider(t *testing.T) {
 			"expected the decrypted api key to be sent as a bearer token")
 	})
 
-	t.Run("reports the http status on a non-2xx response", func(t *testing.T) {
+	t.Run("reports a non-2xx response as a test failure", func(t *testing.T) {
 		fake := newFakeProvider(t, http.StatusNotFound)
 		provider := makeProvider(t, prefixTest+"status", fake.url, "")
 		t.Cleanup(func() { deleteProviders(t, provider) })
@@ -592,7 +597,7 @@ func TestTestProvider(t *testing.T) {
 		require.NoError(t, err, "expected TestProvider to report the failure through the response, not an error")
 
 		assert.False(t, res.Success)
-		assert.Equal(t, "provider returned HTTP 404", res.Error)
+		assert.Equal(t, "error happened when testing the provider", res.Error)
 		require.NotNil(t, res.LatencyMs, "expected the latency to be measured even on failure")
 	})
 
@@ -637,4 +642,122 @@ func TestTestProvider(t *testing.T) {
 		_, err := svc.TestProvider(context.Background(), "nonsense")
 		assert.ErrorIs(t, err, handler_errors.ErrInvalidRequest)
 	})
+}
+
+func TestRefreshModelsForProvider(t *testing.T) {
+	svc := service()
+
+	t.Run("inserts newly discovered models and preserves existing choices", func(t *testing.T) {
+		fake := newFakeProviderWithBody(t, http.StatusOK,
+			`{"object":"list","data":[{"id":"model-a"},{"id":"model-b"}]}`)
+		provider := makeProvider(t, prefixRefresh+"upsert", fake.url, "refresh-key-123")
+		t.Cleanup(func() { deleteProviders(t, provider) })
+
+		result, err := svc.RefreshModelsForProvider(context.Background(), provider.Uuid)
+		require.NoError(t, err)
+		assert.Equal(t, provider.Uuid, result.Uuid)
+		assert.True(t, result.Success)
+		assert.Equal(t, 2, result.Discovered)
+		assert.Equal(t, 2, result.Added)
+		assert.Equal(t, 2, countRows(t, "SELECT COUNT(*) FROM models WHERE provider_id = ?", provider.Id))
+
+		_, err = testDB.Exec("UPDATE models SET name = ?, activated = TRUE WHERE provider_id = ? AND provider_model_id = ?",
+			"custom model name", provider.Id, "model-a")
+		require.NoError(t, err)
+
+		result, err = svc.RefreshModelsForProvider(context.Background(), provider.Uuid)
+		require.NoError(t, err)
+		assert.True(t, result.Success)
+		assert.Equal(t, 2, result.Discovered)
+		assert.Zero(t, result.Added, "existing model IDs should not be inserted again")
+
+		var existing struct {
+			Name      string `db:"name"`
+			Activated bool   `db:"activated"`
+		}
+		err = testDB.Get(&existing,
+			"SELECT name, activated FROM models WHERE provider_id = ? AND provider_model_id = ?",
+			provider.Id, "model-a")
+		require.NoError(t, err)
+		assert.Equal(t, "custom model name", existing.Name)
+		assert.True(t, existing.Activated)
+
+		_, _, authorization := fake.snapshot()
+		assert.Equal(t, "Bearer refresh-key-123", authorization)
+	})
+
+	t.Run("accepts an empty provider catalog", func(t *testing.T) {
+		fake := newFakeProviderWithBody(t, http.StatusOK, `{"object":"list","data":[]}`)
+		provider := makeProvider(t, prefixRefresh+"empty", fake.url, "")
+		t.Cleanup(func() { deleteProviders(t, provider) })
+
+		result, err := svc.RefreshModelsForProvider(context.Background(), provider.Uuid)
+		require.NoError(t, err)
+		assert.Equal(t, provider.Uuid, result.Uuid)
+		assert.True(t, result.Success)
+		assert.Zero(t, result.Discovered)
+		assert.Zero(t, result.Added)
+	})
+
+	t.Run("reports provider request failures in the result", func(t *testing.T) {
+		fake := newFakeProvider(t, http.StatusServiceUnavailable)
+		provider := makeProvider(t, prefixRefresh+"failed", fake.url, "")
+		t.Cleanup(func() { deleteProviders(t, provider) })
+
+		result, err := svc.RefreshModelsForProvider(context.Background(), provider.Uuid)
+		require.NoError(t, err)
+		assert.Equal(t, provider.Uuid, result.Uuid)
+		assert.False(t, result.Success)
+		assert.NotEmpty(t, result.Error)
+	})
+
+	t.Run("reports decryption errors", func(t *testing.T) {
+		provider := makeProvider(t, prefixRefresh+"corrupt-key", "https://api.corrupt.example.com", "")
+		t.Cleanup(func() { deleteProviders(t, provider) })
+		_, err := testDB.Exec("UPDATE providers SET api_key = ? WHERE uuid = ?",
+			[]byte("not-a-valid-ciphertext"), provider.Uuid)
+		require.NoError(t, err)
+
+		_, err = svc.RefreshModelsForProvider(context.Background(), provider.Uuid)
+		assert.ErrorIs(t, err, handler_errors.ErrUnexpectedError)
+	})
+
+	t.Run("returns lookup and validation errors", func(t *testing.T) {
+		_, err := svc.RefreshModelsForProvider(context.Background(), "bad-uuid")
+		assert.ErrorIs(t, err, handler_errors.ErrInvalidRequest)
+		_, err = svc.RefreshModelsForProvider(context.Background(), uuid.NewV4().String())
+		assert.ErrorIs(t, err, handler_errors.ErrProviderNotFound)
+	})
+}
+
+func TestRefreshModelsForAllProviders(t *testing.T) {
+	svc := service()
+	empty, err := svc.RefreshModelsForAllProviders(context.Background())
+	require.NoError(t, err)
+	assert.NotNil(t, empty.Results)
+	assert.Empty(t, empty.Results)
+
+	fakeOne := newFakeProviderWithBody(t, http.StatusOK, `{"data":[{"id":"all-model-a"}]}`)
+	fakeTwo := newFakeProviderWithBody(t, http.StatusOK, `{"data":[{"id":"all-model-b"},{"id":"all-model-c"}]}`)
+	fakeFailed := newFakeProvider(t, http.StatusServiceUnavailable)
+	first := makeProvider(t, prefixRefresh+"all-one", fakeOne.url, "")
+	second := makeProvider(t, prefixRefresh+"all-two", fakeTwo.url, "")
+	failed := makeProvider(t, prefixRefresh+"all-failed", fakeFailed.url, "")
+	t.Cleanup(func() { deleteProviders(t, first, second, failed) })
+
+	response, err := svc.RefreshModelsForAllProviders(context.Background())
+	require.NoError(t, err)
+	require.Len(t, response.Results, 3)
+	byUuid := make(map[string]models.ProviderRefreshResult, len(response.Results))
+	for _, result := range response.Results {
+		byUuid[result.Uuid] = result
+	}
+	assert.True(t, byUuid[first.Uuid].Success)
+	assert.Equal(t, 1, byUuid[first.Uuid].Discovered)
+	assert.Equal(t, 1, byUuid[first.Uuid].Added)
+	assert.True(t, byUuid[second.Uuid].Success)
+	assert.Equal(t, 2, byUuid[second.Uuid].Discovered)
+	assert.Equal(t, 2, byUuid[second.Uuid].Added)
+	assert.False(t, byUuid[failed.Uuid].Success)
+	assert.Equal(t, failed.Uuid, byUuid[failed.Uuid].Uuid)
 }

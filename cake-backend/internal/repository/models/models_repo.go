@@ -11,16 +11,19 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Repository executes SQL queries for persisted models.
 type Repository struct {
 	conn *sqlx.DB
 }
 
+// New creates a models repository using db for database operations.
 func New(db *sqlx.DB) *Repository {
 	return &Repository{
 		conn: db,
 	}
 }
 
+// GetAllModels returns every model joined with its provider UUID, newest first.
 func (r *Repository) GetAllModels() ([]ModelWithProviderUuid, error) {
 	var models []ModelWithProviderUuid
 	if err := r.conn.Select(&models,
@@ -43,6 +46,8 @@ func (r *Repository) GetAllModels() ([]ModelWithProviderUuid, error) {
 	return models, nil
 }
 
+// GetAllActivatedModels returns activated models joined with their provider
+// UUIDs, newest first.
 func (r *Repository) GetAllActivatedModels() ([]ModelWithProviderUuid, error) {
 	var models []ModelWithProviderUuid
 	if err := r.conn.Select(&models,
@@ -66,6 +71,8 @@ func (r *Repository) GetAllActivatedModels() ([]ModelWithProviderUuid, error) {
 	return models, nil
 }
 
+// CreateModel inserts model and sets its CreatedAt timestamp to the current
+// time.
 func (r *Repository) CreateModel(model Model) error {
 	model.CreatedAt = time.Now()
 
@@ -92,6 +99,7 @@ func (r *Repository) CreateModel(model Model) error {
 	return nil
 }
 
+// UpdateModel updates the editable fields of the model identified by UUID.
 func (r *Repository) UpdateModel(model Model) error {
 	_, err := r.conn.NamedExec(
 		`UPDATE models SET
@@ -107,17 +115,27 @@ func (r *Repository) UpdateModel(model Model) error {
 	return nil
 }
 
+// DeleteModel removes the model identified by uuid, or returns ModelNotFound
+// when no matching row exists.
 func (r *Repository) DeleteModel(uuid uuid.UUID) error {
-	_, err := r.conn.Exec(
+	result, err := r.conn.Exec(
 		`DELETE FROM models WHERE uuid = ?`,
 		uuid.String())
 	if err != nil {
 		return &repo_errors.InternalDbError{Err: err}
 	}
+	deleted, err := result.RowsAffected()
+	if err != nil {
+		return &repo_errors.InternalDbError{Err: err}
+	}
+	if deleted == 0 {
+		return &repo_errors.ModelNotFound{}
+	}
 
 	return nil
 }
 
+// GetModel returns the model identified by uuid, or ModelNotFound when absent.
 func (r *Repository) GetModel(uuid uuid.UUID) (Model, error) {
 	var model Model
 	err := r.conn.Get(&model,
@@ -142,6 +160,8 @@ func (r *Repository) GetModel(uuid uuid.UUID) (Model, error) {
 	return model, nil
 }
 
+// GetModelWithProviderUuid returns the model and its provider's public UUID, or
+// ModelNotFound when the model is absent.
 func (r *Repository) GetModelWithProviderUuid(uuid uuid.UUID) (ModelWithProviderUuid, error) {
 	var model ModelWithProviderUuid
 	err := r.conn.Get(&model,
@@ -168,7 +188,13 @@ func (r *Repository) GetModelWithProviderUuid(uuid uuid.UUID) (ModelWithProvider
 	return model, nil
 }
 
+// UpsertModels inserts newly discovered models as inactive. Existing rows are
+// ignored, preserving their user-controlled fields. It returns the number of
+// rows inserted.
 func (r *Repository) UpsertModels(ctx context.Context, modelList []Model) (int64, error) {
+	if len(modelList) == 0 {
+		return 0, nil
+	}
 	result, err := r.conn.NamedExecContext(ctx, `INSERT IGNORE INTO models (
     				uuid, 
                     name,

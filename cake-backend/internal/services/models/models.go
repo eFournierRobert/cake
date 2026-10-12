@@ -1,3 +1,5 @@
+// Package models implements business logic for retrieving, updating, and
+// deleting provider models.
 package models
 
 import (
@@ -14,16 +16,28 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type Service struct {
-	repo *models.Repository
+type modelRepository interface {
+	GetAllModels() ([]models.ModelWithProviderUuid, error)
+	GetAllActivatedModels() ([]models.ModelWithProviderUuid, error)
+	GetModel(uuid.UUID) (models.Model, error)
+	GetModelWithProviderUuid(uuid.UUID) (models.ModelWithProviderUuid, error)
+	UpdateModel(models.Model) error
+	DeleteModel(uuid.UUID) error
 }
 
+// Service applies model business rules and maps repository models to API DTOs.
+type Service struct {
+	repo modelRepository
+}
+
+// New creates a model service backed by db.
 func New(db *sqlx.DB) *Service {
 	return &Service{
 		repo: models.New(db),
 	}
 }
 
+// GetAllModels returns all models, including inactive ones.
 func (s *Service) GetAllModels() ([]modelsHandler.ModelDto, error) {
 	allModels, err := s.repo.GetAllModels()
 	if err != nil {
@@ -43,6 +57,7 @@ func (s *Service) GetAllModels() ([]modelsHandler.ModelDto, error) {
 	return dto, nil
 }
 
+// GetAllActivatedModels returns only models currently enabled for use.
 func (s *Service) GetAllActivatedModels() ([]modelsHandler.ModelDto, error) {
 	allModels, err := s.repo.GetAllActivatedModels()
 	if err != nil {
@@ -62,6 +77,9 @@ func (s *Service) GetAllActivatedModels() ([]modelsHandler.ModelDto, error) {
 	return dto, nil
 }
 
+// UpdateModel changes the supplied editable fields on the model identified by
+// strUuid and returns the updated DTO. Invalid UUIDs and missing models are
+// mapped to client-facing errors.
 func (s *Service) UpdateModel(strUuid string, modelUpdate modelsHandler.ModelUpdate) (modelsHandler.ModelDto, error) {
 	model, err := s.getModelFromStrUuid(strUuid)
 	if err != nil {
@@ -96,6 +114,8 @@ func (s *Service) UpdateModel(strUuid string, modelUpdate modelsHandler.ModelUpd
 	return s.modelToDto(updatedModel), nil
 }
 
+// DeleteModel removes the model identified by strUuid. Invalid UUIDs, missing
+// models, and repository failures are returned as client-facing errors.
 func (s *Service) DeleteModel(strUuid string) error {
 	realUuid, err := uuid.Parse(strUuid)
 	if err != nil {
@@ -127,10 +147,16 @@ func (s *Service) getModelFromStrUuid(strUuid string) (models.Model, error) {
 }
 
 func (s *Service) modelToDto(model models.ModelWithProviderUuid) modelsHandler.ModelDto {
+	var description *string
+	if model.Description.Valid {
+		value := model.Description.String
+		description = &value
+	}
+
 	return modelsHandler.ModelDto{
 		Uuid:            model.Uuid,
 		Name:            model.Name,
-		Description:     &model.Description.String,
+		Description:     description,
 		ProviderModelId: model.ProviderModelId,
 		ProviderUuid:    model.ProviderUuid,
 		Activated:       model.Activated,
@@ -142,8 +168,9 @@ func (s *Service) modelToDto(model models.ModelWithProviderUuid) modelsHandler.M
 func getAppErrorType(err error) error {
 	log.Println("error happened: " + err.Error())
 
-	if errors.Is(err, &repo_errors.ModelNotFound{}) {
-		return handler_errors.ErrProviderNotFound
+	var notFound *repo_errors.ModelNotFound
+	if errors.As(err, &notFound) {
+		return handler_errors.ErrModelNotFound
 	}
 	return handler_errors.ErrUnexpectedError
 }

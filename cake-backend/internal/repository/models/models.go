@@ -1,3 +1,5 @@
+// Package models provides persistence operations and row types for provider
+// models.
 package models
 
 import (
@@ -17,6 +19,7 @@ type Model struct {
 	Activated       bool           `db:"activated"`
 }
 
+// ModelWithProviderUuid is a model row joined with its provider's public UUID.
 type ModelWithProviderUuid struct {
 	Model
 	ProviderUuid string `db:"provider_uuid"`

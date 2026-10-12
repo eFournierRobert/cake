@@ -13,8 +13,12 @@ type ProviderService interface {
 	CreateProvider(provider models.ProviderCreate) (models.ProviderDto, error)
 	ModifyProvider(uuid string, provider models.ProviderUpdate) (models.ProviderDto, error)
 	DeleteProvider(uuid string) error
+	// TestProvider probes the provider's model endpoint and reports connection
+	// failures in the returned response.
 	TestProvider(ctx context.Context, uuid string) (models.ProviderTestResponse, error)
+	// RefreshModelsForProvider synchronizes one provider's model catalog.
 	RefreshModelsForProvider(ctx context.Context, uuid string) (models.ProviderRefreshResult, error)
+	// RefreshModelsForAllProviders synchronizes every provider's model catalog.
 	RefreshModelsForAllProviders(ctx context.Context) (models.ProviderRefreshResponse, error)
 }
 

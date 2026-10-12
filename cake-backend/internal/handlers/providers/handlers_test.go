@@ -327,3 +327,29 @@ func TestProviderServiceErrorsAreWritten(t *testing.T) {
 		})
 	}
 }
+
+func TestProviderRefreshServiceErrorsAreWritten(t *testing.T) {
+	t.Run("single provider refresh", func(t *testing.T) {
+		mock := &providerService.MockService{
+			RefreshModelsForProviderFunc: func(context.Context, string) (models.ProviderRefreshResult, error) {
+				return models.ProviderRefreshResult{}, handler_errors.ErrProviderNotFound
+			},
+		}
+		mux := http.NewServeMux()
+		New(mock, mux)
+		rec := doRequest(t, mux, http.MethodPost, "/providers/"+testUuid+"/models/refresh", testToken(t, "admin"), "")
+		assertError(t, rec, http.StatusNotFound, "provider_not_found")
+	})
+
+	t.Run("refresh all", func(t *testing.T) {
+		mock := &providerService.MockService{
+			RefreshModelsForAllProvidersFunc: func(context.Context) (models.ProviderRefreshResponse, error) {
+				return models.ProviderRefreshResponse{}, errors.New("unexpected failure")
+			},
+		}
+		mux := http.NewServeMux()
+		New(mock, mux)
+		rec := doRequest(t, mux, http.MethodPost, "/providers/models/refresh", testToken(t, "admin"), "")
+		assertError(t, rec, http.StatusInternalServerError, "unexpected_error")
+	})
+}

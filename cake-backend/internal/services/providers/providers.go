@@ -22,8 +22,8 @@ import (
 )
 
 // Service implements the business logic behind the API Providers
-// operations. It stores provider api keys through the encryptor and
-// probes providers with the HTTP client.
+// operations. It stores provider API keys through the encryptor and uses the
+// OpenAI-compatible client to probe providers and refresh model catalogs.
 type Service struct {
 	repo       *providersRepo.Repository
 	modelsRepo *modelsRepo.Repository
@@ -175,12 +175,12 @@ func (s *Service) DeleteProvider(uuidStr string) error {
 	return nil
 }
 
-// TestProvider probes the provider identified by uuid by sending GET
-// <base_url>/models, authenticated with the stored api key as a
-// bearer token when one is set, and reports the request latency and
-// whether the provider answered with a 2xx status. Connection
-// failures and non-2xx statuses are reported through the returned
-// ProviderTestResponse rather than as an error.
+// TestProvider probes the provider identified by uuid with GET
+// <base_url>/models, authenticated with the stored API key as a bearer token
+// when one is set. It reports the request latency and whether the provider
+// returned a successful, decodable model catalog. Request failures and
+// non-2xx responses are represented in ProviderTestResponse rather than as an
+// error.
 func (s *Service) TestProvider(ctx context.Context, uuidStr string) (models.ProviderTestResponse, error) {
 	provider, err := s.getProviderFromStrUuid(uuidStr)
 	if err != nil {
@@ -219,6 +219,10 @@ func (s *Service) TestProvider(ctx context.Context, uuidStr string) (models.Prov
 	}, nil
 }
 
+// RefreshModelsForProvider fetches and synchronizes the model catalog for the
+// provider identified by uuidStr. Provider request failures are reported in
+// the result; lookup, decryption, and persistence failures are returned as
+// errors.
 func (s *Service) RefreshModelsForProvider(ctx context.Context, uuidStr string) (models.ProviderRefreshResult, error) {
 	provider, err := s.getProviderFromStrUuid(uuidStr)
 	if err != nil {
@@ -240,6 +244,7 @@ func (s *Service) RefreshModelsForProvider(ctx context.Context, uuidStr string) 
 	if err != nil {
 		log.Printf("RefreshModelsForProvider error: %v\n", err)
 		return models.ProviderRefreshResult{
+			Uuid:    provider.Uuid,
 			Success: false,
 			Error:   "error happened when sending a request to the provider",
 		}, nil
@@ -269,9 +274,10 @@ func (s *Service) RefreshModelsForProvider(ctx context.Context, uuidStr string) 
 	}, nil
 }
 
-// RefreshModelsForAllProviders refreshes the model catalog for every provider
-// and returns one result per provider. Individual provider connection failures
-// are represented in their result; repository/service errors are returned.
+// RefreshModelsForAllProviders refreshes every provider in repository order
+// and returns one result per provider. Provider request failures are reported
+// in their individual results; lookup and persistence failures are returned as
+// errors.
 func (s *Service) RefreshModelsForAllProviders(ctx context.Context) (models.ProviderRefreshResponse, error) {
 	providers, err := s.repo.GetAllProviders()
 	if err != nil {
@@ -340,7 +346,8 @@ func providerToDto(p providersRepo.Provider) models.ProviderDto {
 func getAppErrorType(err error) error {
 	log.Println("error happened: " + err.Error())
 
-	if errors.Is(err, &repo_errors.ProviderNotFound{}) {
+	var notFound *repo_errors.ProviderNotFound
+	if errors.As(err, &notFound) {
 		return handler_errors.ErrProviderNotFound
 	}
 	return handler_errors.ErrUnexpectedError
