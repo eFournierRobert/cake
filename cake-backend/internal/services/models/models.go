@@ -96,6 +96,20 @@ func (s *Service) UpdateModel(strUuid string, modelUpdate modelsHandler.ModelUpd
 	return s.modelToDto(updatedModel), nil
 }
 
+func (s *Service) DeleteModel(strUuid string) error {
+	realUuid, err := uuid.Parse(strUuid)
+	if err != nil {
+		log.Printf("DeleteModel error: %v\n", err)
+		return handler_errors.ErrInvalidRequest
+	}
+
+	if err := s.repo.DeleteModel(realUuid); err != nil {
+		return getAppErrorType(err)
+	}
+
+	return nil
+}
+
 func (s *Service) getModelFromStrUuid(strUuid string) (models.Model, error) {
 	realUuid, err := uuid.Parse(strUuid)
 	if err != nil {
