@@ -1,7 +1,9 @@
+// Package spaces provides persistence operations for user-owned spaces.
 package spaces
 
 import "time"
 
+// Space is a row from the spaces table.
 type Space struct {
 	ID           int       `db:"id"`
 	Uuid         string    `db:"uuid"`
