@@ -5,11 +5,13 @@ import (
 	"efournierrobert/cake-backend/internal/encryptor"
 	modelHandler "efournierrobert/cake-backend/internal/handlers/model"
 	providerHandler "efournierrobert/cake-backend/internal/handlers/providers"
+	spaceHandler "efournierrobert/cake-backend/internal/handlers/spaces"
 	userHandler "efournierrobert/cake-backend/internal/handlers/users"
 	"efournierrobert/cake-backend/internal/repository"
 	userRepo "efournierrobert/cake-backend/internal/repository/users"
 	modelService "efournierrobert/cake-backend/internal/services/models"
 	providerService "efournierrobert/cake-backend/internal/services/providers"
+	spaceService "efournierrobert/cake-backend/internal/services/spaces"
 	"efournierrobert/cake-backend/internal/services/users"
 	"encoding/base64"
 	"fmt"
@@ -55,6 +57,8 @@ func main() {
 	_ = providerHandler.New(providersService, mux)
 	modelsService := modelService.New(db)
 	_ = modelHandler.New(modelsService, mux)
+	spacesService := spaceService.New(db)
+	_ = spaceHandler.New(spacesService, mux)
 
 	log.Println("Cake server started and listening on port 8080")
 	if err := server.ListenAndServe(); err != nil {
