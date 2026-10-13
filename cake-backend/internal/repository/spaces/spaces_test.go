@@ -139,7 +139,7 @@ func TestCreateSpaceAndGetSpace(t *testing.T) {
 	assert.False(t, created.CreatedAt.IsZero())
 	assert.False(t, created.UpdatedAt.IsZero())
 
-	got, err := repo.GetSpace(uuid.MustParse(want.Uuid))
+	got, err := repo.getSpace(uuid.MustParse(want.Uuid))
 	require.NoError(t, err)
 	assert.Equal(t, created, got)
 }
@@ -179,7 +179,7 @@ func TestUpdateSpace(t *testing.T) {
 }
 
 func TestGetSpaceNotFound(t *testing.T) {
-	_, err := New(testDB).GetSpace(uuid.NewV4())
+	_, err := New(testDB).getSpace(uuid.NewV4())
 	assert.ErrorIs(t, err, &repo_errors.SpaceNotFound{})
 }
 
@@ -195,8 +195,8 @@ func TestDeleteSpace(t *testing.T) {
 	created := makeSpace(t, repo, owner, "to-delete")
 	spaceUUID := uuid.MustParse(created.Uuid)
 
-	require.NoError(t, repo.DeleteSpace(spaceUUID))
-	_, err := repo.GetSpace(spaceUUID)
+	require.NoError(t, repo.DeleteSpace(owner.uuid, spaceUUID))
+	_, err := repo.getSpace(spaceUUID)
 	assert.ErrorIs(t, err, &repo_errors.SpaceNotFound{})
-	assert.ErrorIs(t, repo.DeleteSpace(spaceUUID), &repo_errors.SpaceNotFound{})
+	assert.ErrorIs(t, repo.DeleteSpace(owner.uuid, spaceUUID), &repo_errors.SpaceNotFound{})
 }
