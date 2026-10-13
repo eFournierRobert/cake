@@ -46,8 +46,33 @@ func (r *Repository) GetAllUserSpaces(ownerUuid uuid.UUID) ([]Space, error) {
 	return spaces, nil
 }
 
-// GetSpace returns the space identified by spaceUuid, or SpaceNotFound if absent.
-func (r *Repository) GetSpace(spaceUuid uuid.UUID) (Space, error) {
+func (r *Repository) GetUserSpace(ownerUuid, spaceUuid uuid.UUID) (Space, error) {
+	var space Space
+	err := r.conn.Get(&space, `
+		SELECT 
+		    spaces.id,
+		    spaces.uuid,
+		    spaces.name,
+		    spaces.system_prompt,
+		    spaces.created_at,
+		    spaces.updated_at,
+		    spaces.owner_id
+		FROM spaces
+		LEFT JOIN users ON spaces.owner_id = users.id
+		WHERE spaces.uuid = ? AND users.uuid = ?
+	`, spaceUuid.String(), ownerUuid.String())
+	if errors.Is(err, sql.ErrNoRows) {
+		return Space{}, &repo_errors.SpaceNotFound{}
+	}
+	if err != nil {
+		return Space{}, &repo_errors.InternalDbError{Err: err}
+	}
+
+	return space, nil
+}
+
+// getSpace returns the space identified by spaceUuid, or SpaceNotFound if absent.
+func (r *Repository) getSpace(spaceUuid uuid.UUID) (Space, error) {
 	var space Space
 	err := r.conn.Get(&space, `
 		SELECT 
@@ -89,7 +114,7 @@ func (r *Repository) CreateSpace(space Space) (Space, error) {
 		return Space{}, &repo_errors.InternalDbError{Err: err}
 	}
 
-	return r.GetSpace(uuid.MustParse(space.Uuid))
+	return r.getSpace(uuid.MustParse(space.Uuid))
 }
 
 // UpdateSpace updates a space's name and system prompt and returns the stored row.
@@ -105,14 +130,15 @@ func (r *Repository) UpdateSpace(space Space) (Space, error) {
 		return Space{}, &repo_errors.InternalDbError{Err: err}
 	}
 
-	return r.GetSpace(uuid.MustParse(space.Uuid))
+	return r.getSpace(uuid.MustParse(space.Uuid))
 }
 
 // DeleteSpace removes the space identified by spaceUuid, or returns SpaceNotFound.
-func (r *Repository) DeleteSpace(spaceUuid uuid.UUID) error {
-	result, err := r.conn.Exec(`DELETE
+func (r *Repository) DeleteSpace(ownerUuid, spaceUuid uuid.UUID) error {
+	result, err := r.conn.Exec(`DELETE spaces
        FROM spaces
-       WHERE spaces.uuid = ?`, spaceUuid.String())
+       JOIN users ON spaces.owner_id = users.id
+       WHERE spaces.uuid = ? AND users.uuid = ?`, spaceUuid.String(), ownerUuid.String())
 	if err != nil {
 		return &repo_errors.InternalDbError{Err: err}
 	}

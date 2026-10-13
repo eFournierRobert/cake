@@ -74,6 +74,13 @@ var (
 		HttpStatus: http.StatusNotFound,
 	}
 
+	// ErrSpaceNotFound is returned when the requested space does not exist.
+	ErrSpaceNotFound = AppError{
+		Code:       "space_not_found",
+		Message:    "The requested space does not exist",
+		HttpStatus: http.StatusNotFound,
+	}
+
 	// ErrInvalidPassword is returned when authentication credentials are invalid.
 	ErrInvalidPassword = AppError{
 		Code:       "invalid_credentials",
