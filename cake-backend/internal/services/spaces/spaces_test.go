@@ -80,6 +80,26 @@ func (f *fakeUserRepository) GetUser(userUuid uuid.UUID) (userRepo.User, error) 
 	return f.user, f.err
 }
 
+func (f *fakeUserRepository) GetAllUsers() ([]userRepo.UserWithRole, error) {
+	panic("unexpected call to GetAllUsers")
+}
+
+func (f *fakeUserRepository) UpdateUser(user userRepo.User) (userRepo.User, error) {
+	panic("unexpected call to UpdateUser")
+}
+
+func (f *fakeUserRepository) CreateUser(user userRepo.User) (userRepo.User, error) {
+	panic("unexpected call to CreateUser")
+}
+
+func (f *fakeUserRepository) DeleteUser(userUuid uuid.UUID) error {
+	panic("unexpected call to DeleteUser")
+}
+
+func (f *fakeUserRepository) GetUserCredentials(username string) (userRepo.UserWithRole, error) {
+	panic("unexpected call to GetUserCredentials")
+}
+
 func newTestService() (*Service, *fakeSpaceRepository, *fakeUserRepository) {
 	spaces := &fakeSpaceRepository{}
 	users := &fakeUserRepository{}

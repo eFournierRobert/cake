@@ -14,22 +14,10 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type spaceRepository interface {
-	GetAllUserSpaces(ownerUuid uuid.UUID) ([]spaceRepo.Space, error)
-	GetUserSpace(ownerUuid, spaceUuid uuid.UUID) (spaceRepo.Space, error)
-	CreateSpace(space spaceRepo.Space) (spaceRepo.Space, error)
-	UpdateSpace(space spaceRepo.Space) (spaceRepo.Space, error)
-	DeleteSpace(ownerUuid, spaceUuid uuid.UUID) error
-}
-
-type userRepository interface {
-	GetUser(userUuid uuid.UUID) (userRepo.User, error)
-}
-
 // Service applies ownership rules and maps persisted spaces to API DTOs.
 type Service struct {
-	repo     spaceRepository
-	userRepo userRepository
+	repo     spaceRepo.SpaceRepository
+	userRepo userRepo.UserRepository
 }
 
 // New creates a spaces service backed by db.

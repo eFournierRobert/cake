@@ -16,26 +16,9 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type modelRepository interface {
-	GetAllModels() ([]models.ModelWithProviderUuid, error)
-	GetAllActivatedModels() ([]models.ModelWithProviderUuid, error)
-	GetModel(uuid.UUID) (models.Model, error)
-	GetModelWithProviderUuid(uuid.UUID) (models.ModelWithProviderUuid, error)
-	UpdateModel(models.Model) error
-	DeleteModel(uuid.UUID) error
-}
-
-// ModelService is the business-logic contract consumed by model HTTP handlers.
-type ModelService interface {
-	GetAllModels() ([]modelsHandler.ModelDto, error)
-	GetAllActivatedModels() ([]modelsHandler.ModelDto, error)
-	UpdateModel(uuid string, modelUpdate modelsHandler.ModelUpdate) (modelsHandler.ModelDto, error)
-	DeleteModel(uuid string) error
-}
-
 // Service applies model business rules and maps repository models to API DTOs.
 type Service struct {
-	repo modelRepository
+	repo models.ModelRepository
 }
 
 var _ ModelService = (*Service)(nil)
