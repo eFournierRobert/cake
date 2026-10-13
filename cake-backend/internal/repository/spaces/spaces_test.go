@@ -195,8 +195,8 @@ func TestDeleteSpace(t *testing.T) {
 	created := makeSpace(t, repo, owner, "to-delete")
 	spaceUUID := uuid.MustParse(created.Uuid)
 
-	require.NoError(t, repo.DeleteSpace(spaceUUID))
+	require.NoError(t, repo.DeleteSpace(owner.uuid, spaceUUID))
 	_, err := repo.getSpace(spaceUUID)
 	assert.ErrorIs(t, err, &repo_errors.SpaceNotFound{})
-	assert.ErrorIs(t, repo.DeleteSpace(spaceUUID), &repo_errors.SpaceNotFound{})
+	assert.ErrorIs(t, repo.DeleteSpace(owner.uuid, spaceUUID), &repo_errors.SpaceNotFound{})
 }
