@@ -18,8 +18,8 @@ type SpaceCreate struct {
 }
 
 // SpaceUpdate contains the optional space fields accepted by an update
-// request. SystemPrompt tracks presence separately so null can clear the
-// stored prompt while an omitted property leaves it unchanged.
+// request. Non-nil fields are applied; nil fields are left unchanged. For
+// pointer fields, omitted and JSON null values both decode to nil.
 type SpaceUpdate struct {
 	Name         *string `json:"name,omitempty"`
 	SystemPrompt *string `json:"system_prompt,omitempty"`

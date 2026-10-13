@@ -1,11 +1,12 @@
+// Package spaces implements the business logic for user-owned conversation spaces.
 package spaces
 
 import (
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
 	"efournierrobert/cake-backend/internal/handlers/models"
 	"efournierrobert/cake-backend/internal/repository/repo_errors"
-	"efournierrobert/cake-backend/internal/repository/spaces"
-	"efournierrobert/cake-backend/internal/repository/users"
+	spaceRepo "efournierrobert/cake-backend/internal/repository/spaces"
+	userRepo "efournierrobert/cake-backend/internal/repository/users"
 	"errors"
 	"log"
 	"uuid"
@@ -13,18 +14,35 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type Service struct {
-	repo     *spaces.Repository
-	userRepo *users.Repository
+type spaceRepository interface {
+	GetAllUserSpaces(ownerUuid uuid.UUID) ([]spaceRepo.Space, error)
+	GetUserSpace(ownerUuid, spaceUuid uuid.UUID) (spaceRepo.Space, error)
+	CreateSpace(space spaceRepo.Space) (spaceRepo.Space, error)
+	UpdateSpace(space spaceRepo.Space) (spaceRepo.Space, error)
+	DeleteSpace(ownerUuid, spaceUuid uuid.UUID) error
 }
 
+type userRepository interface {
+	GetUser(userUuid uuid.UUID) (userRepo.User, error)
+}
+
+// Service applies ownership rules and maps persisted spaces to API DTOs.
+type Service struct {
+	repo     spaceRepository
+	userRepo userRepository
+}
+
+// New creates a spaces service backed by db.
 func New(db *sqlx.DB) *Service {
 	return &Service{
-		repo:     spaces.New(db),
-		userRepo: users.New(db),
+		repo:     spaceRepo.New(db),
+		userRepo: userRepo.New(db),
 	}
 }
 
+// GetAllSpaces returns every space owned by ownerUuidStr. An empty result is
+// returned as a non-nil empty slice. Invalid owner UUIDs return
+// handler_errors.ErrInvalidRequest.
 func (s *Service) GetAllSpaces(ownerUuidStr string) ([]models.SpaceDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
@@ -36,7 +54,7 @@ func (s *Service) GetAllSpaces(ownerUuidStr string) ([]models.SpaceDto, error) {
 		return nil, getAppErrorType(err)
 	}
 
-	var dto []models.SpaceDto
+	dto := []models.SpaceDto{}
 	for _, s := range allUserSpaces {
 		dto = append(dto, spaceToDto(s))
 	}
@@ -44,6 +62,9 @@ func (s *Service) GetAllSpaces(ownerUuidStr string) ([]models.SpaceDto, error) {
 	return dto, nil
 }
 
+// GetSpace returns the space identified by spaceUuidStr, provided it belongs
+// to ownerUuidStr. Invalid UUIDs return handler_errors.ErrInvalidRequest and
+// missing or non-owned spaces return handler_errors.ErrSpaceNotFound.
 func (s *Service) GetSpace(spaceUuidStr, ownerUuidStr string) (models.SpaceDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
@@ -63,13 +84,16 @@ func (s *Service) GetSpace(spaceUuidStr, ownerUuidStr string) (models.SpaceDto, 
 	return spaceToDto(space), nil
 }
 
+// CreateSpace creates a space owned by ownerUuidStr and returns its DTO. The
+// owner must identify an existing user. The system prompt is stored as a
+// string, including an empty string when omitted.
 func (s *Service) CreateSpace(ownerUuidStr string, spaceToCreate models.SpaceCreate) (models.SpaceDto, error) {
 	user, err := s.getUserFromUuid(ownerUuidStr)
 	if err != nil {
 		return models.SpaceDto{}, err
 	}
 
-	space := spaces.Space{
+	space := spaceRepo.Space{
 		Uuid:         uuid.NewV4().String(),
 		Name:         spaceToCreate.Name,
 		SystemPrompt: spaceToCreate.SystemPrompt,
@@ -84,6 +108,9 @@ func (s *Service) CreateSpace(ownerUuidStr string, spaceToCreate models.SpaceCre
 	return spaceToDto(space), nil
 }
 
+// UpdateSpace applies the non-nil fields in spaceUpdate to the owner's space
+// and returns the updated DTO. A nil field is left unchanged; an explicitly
+// supplied empty string is stored as an empty string.
 func (s *Service) UpdateSpace(ownerUuidStr, spaceUuidStr string, spaceUpdate models.SpaceUpdate) (models.SpaceDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
@@ -115,6 +142,9 @@ func (s *Service) UpdateSpace(ownerUuidStr, spaceUuidStr string, spaceUpdate mod
 	return spaceToDto(space), nil
 }
 
+// DeleteSpace removes the space identified by spaceUuidStr when it belongs to
+// ownerUuidStr. Invalid UUIDs return handler_errors.ErrInvalidRequest and a
+// missing or non-owned space returns handler_errors.ErrSpaceNotFound.
 func (s *Service) DeleteSpace(ownerUuidStr, spaceUuidStr string) error {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
@@ -134,21 +164,21 @@ func (s *Service) DeleteSpace(ownerUuidStr, spaceUuidStr string) error {
 	return nil
 }
 
-func (s *Service) getUserFromUuid(uuidStr string) (users.User, error) {
+func (s *Service) getUserFromUuid(uuidStr string) (userRepo.User, error) {
 	userUuid, err := uuid.Parse(uuidStr)
 	if err != nil {
-		return users.User{}, getAppErrorType(err)
+		return userRepo.User{}, handler_errors.ErrInvalidRequest
 	}
 
 	user, err := s.userRepo.GetUser(userUuid)
 	if err != nil {
-		return users.User{}, getAppErrorType(err)
+		return userRepo.User{}, getAppErrorType(err)
 	}
 
 	return user, nil
 }
 
-func spaceToDto(s spaces.Space) models.SpaceDto {
+func spaceToDto(s spaceRepo.Space) models.SpaceDto {
 	return models.SpaceDto{
 		Uuid:         s.Uuid,
 		Name:         s.Name,
@@ -162,11 +192,12 @@ func spaceToDto(s spaces.Space) models.SpaceDto {
 func getAppErrorType(err error) error {
 	log.Println("error happened: " + err.Error())
 
-	if errors.Is(err, &repo_errors.SpaceNotFound{}) {
-		return handler_errors.ErrProviderNotFound
+	if _, ok := errors.AsType[*repo_errors.SpaceNotFound](err); ok {
+		return handler_errors.ErrSpaceNotFound
 	}
-	if errors.Is(err, &repo_errors.UserNotFound{}) {
-		return handler_errors.ErrProviderNotFound
+
+	if _, ok := errors.AsType[*repo_errors.UserNotFound](err); ok {
+		return handler_errors.ErrUserDoesNotExist
 	}
 	return handler_errors.ErrUnexpectedError
 }
