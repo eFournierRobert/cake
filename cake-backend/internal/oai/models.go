@@ -16,3 +16,27 @@ type Model struct {
 	Created int64  `json:"created"`
 	OwnedBy string `json:"owned_by"`
 }
+
+type ResponseEvent struct {
+	Data  ResponseEventData
+	Error error
+}
+
+type ResponseEventData struct {
+	Type  string `json:"type"`
+	Delta string `json:"delta"`
+}
+
+type ResponseRequestBody struct {
+	Model           string          `json:"model"`
+	Instructions    string          `json:"instructions"`
+	Stream          bool            `json:"stream"`
+	Store           bool            `json:"store"`
+	MaxOutputTokens int             `json:"max_output_tokens"`
+	Input           []ResponseInput `json:"input"`
+}
+
+type ResponseInput struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
