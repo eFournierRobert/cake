@@ -24,3 +24,20 @@ type SpaceUpdate struct {
 	Name         *string `json:"name,omitempty"`
 	SystemPrompt *string `json:"system_prompt,omitempty"`
 }
+
+type ChatCreate struct {
+	ConversationUuid *string `json:"conversation_uuid,omitempty"`
+	ModelUuid        string  `json:"model_uuid"`
+	Message          string  `json:"message"`
+	Reasoning        string  `json:"reasoning"`
+}
+
+type ChatDto struct {
+	Event string      `json:"event"`
+	Data  ChatDtoData `json:"data"`
+}
+
+type ChatDtoData struct {
+	MessageUuid *string `json:"message_uuid"`
+	Content     *string `json:"content"`
+}
