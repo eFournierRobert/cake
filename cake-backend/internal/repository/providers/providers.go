@@ -57,6 +57,21 @@ func (r *Repository) GetProvider(uuid uuid.UUID) (Provider, error) {
 	return provider, nil
 }
 
+func (r *Repository) GetProviderById(id int) (Provider, error) {
+	var provider Provider
+	err := r.conn.Get(&provider,
+		`SELECT * FROM providers WHERE id = ?`,
+		id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return provider, &repo_errors.ProviderNotFound{}
+	}
+	if err != nil {
+		return provider, &repo_errors.InternalDbError{Err: err}
+	}
+
+	return provider, nil
+}
+
 // CreateProvider inserts a provider, filling in the timestamps, and
 // returns the created provider as stored in the database, including
 // its auto-generated id.

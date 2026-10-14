@@ -35,6 +35,7 @@ type ChatCreate struct {
 type ChatDto struct {
 	Event string      `json:"event"`
 	Data  ChatDtoData `json:"data"`
+	Error string      `json:"error,omitempty"`
 }
 
 type ChatDtoData struct {

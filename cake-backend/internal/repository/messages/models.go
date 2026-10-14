@@ -10,3 +10,13 @@ type Message struct {
 	ConversationId int       `db:"conversation_id"`
 	RoleId         int       `db:"role_id"`
 }
+
+type MessageRole struct {
+	ID   int    `db:"id"`
+	Name string `db:"name"`
+}
+
+type MessageWithRoleName struct {
+	Message
+	RoleName string `db:"role_name"`
+}

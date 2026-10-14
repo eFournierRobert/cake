@@ -3,6 +3,7 @@ package spaces
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
@@ -25,6 +26,8 @@ func New(svc spaceService.SpaceService, router *http.ServeMux) *Handler {
 	router.HandleFunc("GET /spaces/{uuid}", auth.RequireAuth(h.getSpace))
 	router.HandleFunc("PATCH /spaces/{uuid}", auth.RequireAuth(h.patchSpace))
 	router.HandleFunc("DELETE /spaces/{uuid}", auth.RequireAuth(h.deleteSpace))
+	router.HandleFunc("POST /spaces/{uuid}/chat", auth.RequireAuth(h.chat))
+
 	return h
 }
 
@@ -87,6 +90,30 @@ func (h *Handler) deleteSpace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) chat(w http.ResponseWriter, r *http.Request) {
+	var req models.ChatCreate
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		handler_errors.WriteError(w, handler_errors.ErrInvalidRequest)
+		return
+	}
+
+	ownerUuid := r.Context().Value(auth.UserUuidKey).(string)
+
+	chatChan, err := h.service.CreateChat(r.Context(), ownerUuid, r.PathValue("uuid"), req)
+	if err != nil {
+		handler_errors.WriteError(w, err)
+		return
+	}
+
+	for data := range chatChan {
+		log.Printf("%s\n", data.Event)
+		if data.Data.Content != nil {
+			log.Printf("%s\n", *data.Data.Content)
+		}
+		log.Printf("%s\n", data.Error)
+	}
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

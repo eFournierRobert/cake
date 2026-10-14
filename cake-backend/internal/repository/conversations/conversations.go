@@ -18,12 +18,18 @@ func New(db *sqlx.DB) *Repository {
 	return &Repository{conn: db}
 }
 
-func (r *Repository) GetConversation(convoUuid uuid.UUID) (Conversation, error) {
+func (r *Repository) GetConversation(ownerUuid, convoUuid uuid.UUID) (Conversation, error) {
 	var conversation Conversation
 	err := r.conn.Get(&conversation, `SELECT 
-    	* 
+			conversations.id,
+			conversations.uuid,
+			conversations.owner_id,
+			conversations.title,
+			conversations.created_at,
+			conversations.space_id
 		FROM conversations
-		WHERE conversations.uuid = ?`, convoUuid)
+		JOIN users ON conversations.owner_id = users.id
+		WHERE conversations.uuid = ? AND users.uuid = ?`, convoUuid.String(), ownerUuid.String())
 	if errors.Is(err, sql.ErrNoRows) {
 		return Conversation{}, &repo_errors.ConversationNotFound{}
 	}
@@ -34,7 +40,7 @@ func (r *Repository) GetConversation(convoUuid uuid.UUID) (Conversation, error) 
 	return conversation, nil
 }
 
-func (r *Repository) CreateConversation(conversation Conversation) (Conversation, error) {
+func (r *Repository) CreateConversation(ownerUuid uuid.UUID, conversation Conversation) (Conversation, error) {
 	conversation.CreatedAt = time.Now()
 
 	_, err := r.conn.NamedExec(`INSERT INTO conversations (
@@ -54,5 +60,5 @@ func (r *Repository) CreateConversation(conversation Conversation) (Conversation
 		return Conversation{}, &repo_errors.InternalDbError{Err: err}
 	}
 
-	return r.GetConversation(uuid.MustParse(conversation.Uuid))
+	return r.GetConversation(ownerUuid, uuid.MustParse(conversation.Uuid))
 }
