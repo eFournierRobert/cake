@@ -22,6 +22,22 @@ type ResponseEvent struct {
 	Error error
 }
 
+type ResponseResponse struct {
+	Usage struct {
+		InputTokens  int `json:"input_tokens"`
+		OutputTokens int `json:"output_tokens"`
+		TotalTokens  int `json:"total_tokens"`
+	} `json:"usage"`
+	Output []struct {
+		Type    string `json:"type"`
+		Role    string `json:"role"`
+		Content []struct {
+			Type string `json:"type"`
+			Text string `json:"text"`
+		} `json:"content"`
+	} `json:"output"`
+}
+
 type ResponseEventData struct {
 	Type  string `json:"type"`
 	Delta string `json:"delta"`

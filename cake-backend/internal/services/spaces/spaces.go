@@ -212,7 +212,16 @@ func (s *Service) CreateChat(
 		RoleId:         0,
 	}
 
-	convo, err := s.ensureConversation(message.ConversationUuid, owner.Id, space.ID, uuid.MustParse(owner.Uuid))
+	convo, err := s.ensureConversation(
+		ctx,
+		string(apiKey),
+		provider.BaseUrl,
+		model.ProviderModelId,
+		newMessage.Content,
+		message.ConversationUuid,
+		owner.Id,
+		space.ID,
+		uuid.MustParse(owner.Uuid))
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +253,7 @@ func (s *Service) CreateChat(
 		})
 	}
 
-	oaiChannel, err := s.oai.CreateResponse(
+	oaiChannel, err := s.oai.CreateStreamingResponse(
 		ctx,
 		string(apiKey),
 		provider.BaseUrl,
@@ -347,15 +356,49 @@ func (s *Service) createAssistantMessage(message string, convoId int, messageUui
 	return s.messagesRepo.CreateMessage(newMessage)
 }
 
-func (s *Service) ensureConversation(convoUuid *string, ownerId, spaceId int, ownerUuid uuid.UUID) (convosRepo.Conversation, error) {
+func (s *Service) ensureConversation(
+	ctx context.Context,
+	apiKey,
+	baseUrl,
+	modelProviderId,
+	message string,
+	convoUuid *string,
+	ownerId,
+	spaceId int,
+	ownerUuid uuid.UUID) (convosRepo.Conversation, error) {
 	var convo convosRepo.Conversation
 	var err error
 
 	if convoUuid == nil {
+		var titleResponse oai.ResponseResponse
+		titleResponse, err = s.oai.CreateResponse(
+			ctx,
+			apiKey,
+			baseUrl,
+			modelProviderId,
+			"You need to create a short conversation title for the given message. Please Answer only with the title and keep it under 200 char.",
+			[]oai.ResponseInput{{
+				Role:    "user",
+				Content: message,
+			}})
+		if err != nil {
+			return convosRepo.Conversation{}, getAppErrorType(err)
+		}
+
+		var title string
+		for _, r := range titleResponse.Output {
+			if r.Type != "message" {
+				continue
+			}
+
+			title = r.Content[0].Text
+			break
+		}
+
 		convo, err = s.convosRepo.CreateConversation(ownerUuid, convosRepo.Conversation{
 			Uuid:    uuid.NewV4().String(),
 			OwnerId: ownerId,
-			Title:   "test convo",
+			Title:   title,
 			SpaceId: spaceId,
 		})
 		if err != nil {

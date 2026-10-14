@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -20,7 +21,7 @@ type OpenAi struct {
 func New() *OpenAi {
 	return &OpenAi{
 		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: 20 * time.Second,
 		},
 	}
 }
@@ -57,44 +58,53 @@ func (oai *OpenAi) GetModels(ctx context.Context, apiKey, baseUrl string) (GetMo
 	return getModelsResponse, nil
 }
 
-// TODO Create Non streaming response method
-
 func (oai *OpenAi) CreateResponse(
 	ctx context.Context,
 	apiKey,
 	baseUrl,
 	model,
 	instructions string,
+	convoInput []ResponseInput) (ResponseResponse, error) {
+	req, err := oai.createResponseRequest(ctx, apiKey, baseUrl, model, instructions, convoInput, false)
+	if err != nil {
+		return ResponseResponse{}, err
+	}
+
+	resp, err := oai.httpClient.Do(req)
+	if err != nil {
+		return ResponseResponse{}, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		resp.Body.Close()
+		return ResponseResponse{}, fmt.Errorf("error: received %d from API %s", resp.StatusCode, baseUrl)
+	}
+
+	fullBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ResponseResponse{}, err
+	}
+
+	var response ResponseResponse
+	if err := json.Unmarshal(fullBody, &response); err != nil {
+		return ResponseResponse{}, err
+	}
+
+	return response, nil
+}
+
+func (oai *OpenAi) CreateStreamingResponse(
+	ctx context.Context,
+	apiKey,
+	baseUrl,
+	model,
+	instructions string,
 	convoInput []ResponseInput) (<-chan ResponseEvent, error) {
-	responseRequestBody := ResponseRequestBody{
-		Model:           model,
-		Instructions:    instructions,
-		Stream:          true,
-		Store:           false,
-		MaxOutputTokens: 8192,
-		Input:           convoInput,
-	}
-
-	marshaledBody, err := json.Marshal(responseRequestBody)
+	req, err := oai.createResponseRequest(ctx, apiKey, baseUrl, model, instructions, convoInput, true)
 	if err != nil {
 		return nil, err
 	}
-
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodPost,
-		baseUrl+"/responses",
-		bytes.NewBuffer(marshaledBody))
-	if err != nil {
-		return nil, err
-	}
-
-	if len(apiKey) > 0 {
-		req.Header.Set("Authorization", "Bearer "+string(apiKey))
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "text/event-stream")
 
 	resp, err := oai.httpClient.Do(req)
 	if err != nil {
@@ -193,4 +203,45 @@ func (oai *OpenAi) CreateResponse(
 	}()
 
 	return outputChannel, nil
+}
+
+func (oai *OpenAi) createResponseRequest(
+	ctx context.Context,
+	apiKey,
+	baseUrl,
+	model,
+	instructions string,
+	convoInput []ResponseInput,
+	streaming bool) (*http.Request, error) {
+	responseRequestBody := ResponseRequestBody{
+		Model:           model,
+		Instructions:    instructions,
+		Stream:          streaming,
+		Store:           false,
+		MaxOutputTokens: 8192,
+		Input:           convoInput,
+	}
+
+	marshaledBody, err := json.Marshal(responseRequestBody)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		baseUrl+"/responses",
+		bytes.NewBuffer(marshaledBody))
+	if err != nil {
+		return nil, err
+	}
+
+	if len(apiKey) > 0 {
+		req.Header.Set("Authorization", "Bearer "+string(apiKey))
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "text/event-stream")
+
+	return req, nil
 }
