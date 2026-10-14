@@ -16,6 +16,7 @@ import (
 	userRepo "efournierrobert/cake-backend/internal/repository/users"
 	"errors"
 	"log"
+	"strings"
 	"uuid"
 
 	"github.com/jmoiron/sqlx"
@@ -218,7 +219,7 @@ func (s *Service) CreateChat(
 
 	newMessage.ConversationId = convo.ID
 
-	role, err := s.messagesRepo.GetUserRole()
+	role, err := s.messagesRepo.GetRole("user")
 	if err != nil {
 		return nil, getAppErrorType(err)
 	}
@@ -263,11 +264,18 @@ func (s *Service) CreateChat(
 			Data:  models.ChatDtoData{},
 		}
 
+		var fullMessage strings.Builder
+		messageUuid := uuid.NewV4()
+		messageUuidStr := messageUuid.String()
+
 		for data := range oaiChannel {
 			if data.Error != nil {
 				log.Printf("error during openAI request: %v", err)
 				outputChannel <- models.ChatDto{
 					Error: "error during request",
+					Data: models.ChatDtoData{
+						ConversationUuid: &convo.Uuid,
+					},
 				}
 			}
 
@@ -277,10 +285,11 @@ func (s *Service) CreateChat(
 				case outputChannel <- models.ChatDto{
 					Event: data.Data.Type,
 					Data: models.ChatDtoData{
-						MessageUuid: nil,
-						Content:     &data.Data.Delta,
+						Content:          &data.Data.Delta,
+						ConversationUuid: &convo.Uuid,
 					},
 				}:
+					fullMessage.WriteString(data.Data.Delta)
 				case <-ctx.Done():
 				}
 			case "response.completed":
@@ -288,16 +297,29 @@ func (s *Service) CreateChat(
 				case outputChannel <- models.ChatDto{
 					Event: data.Data.Type,
 					Data: models.ChatDtoData{
-						MessageUuid: nil,
-						Content:     nil,
+						MessageUuid:      &messageUuidStr,
+						Content:          nil,
+						ConversationUuid: &convo.Uuid,
 					},
 				}:
+					if err := s.createAssistantMessage(fullMessage.String(), convo.ID, messageUuid); err != nil {
+						log.Printf("error at the end of completion: %v", err)
+						outputChannel <- models.ChatDto{
+							Error: "error during request",
+							Data: models.ChatDtoData{
+								ConversationUuid: &convo.Uuid,
+							},
+						}
+					}
 				case <-ctx.Done():
 				}
 			case "response.failed", "response.incomplete":
 				select {
 				case outputChannel <- models.ChatDto{
 					Event: data.Data.Type,
+					Data: models.ChatDtoData{
+						ConversationUuid: &convo.Uuid,
+					},
 				}:
 				case <-ctx.Done():
 				}
@@ -307,6 +329,22 @@ func (s *Service) CreateChat(
 	}()
 
 	return outputChannel, nil
+}
+
+func (s *Service) createAssistantMessage(message string, convoId int, messageUuid uuid.UUID) error {
+	role, err := s.messagesRepo.GetRole("assistant")
+	if err != nil {
+		return err
+	}
+
+	newMessage := messagesRepo.Message{
+		Uuid:           messageUuid.String(),
+		Content:        message,
+		ConversationId: convoId,
+		RoleId:         role.ID,
+	}
+
+	return s.messagesRepo.CreateMessage(newMessage)
 }
 
 func (s *Service) ensureConversation(convoUuid *string, ownerId, spaceId int, ownerUuid uuid.UUID) (convosRepo.Conversation, error) {

@@ -39,6 +39,7 @@ type ChatDto struct {
 }
 
 type ChatDtoData struct {
-	MessageUuid *string `json:"message_uuid"`
-	Content     *string `json:"content"`
+	MessageUuid      *string `json:"message_uuid"`
+	Content          *string `json:"content"`
+	ConversationUuid *string `json:"conversation_uuid"`
 }

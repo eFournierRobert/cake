@@ -2,7 +2,7 @@ package messages
 
 type MessagesRepo interface {
 	CreateMessage(message Message) error
-	GetUserRole() (MessageRole, error)
+	GetRole(name string) (MessageRole, error)
 	GetWholeConversation(conversationId int) ([]MessageWithRoleName, error)
 }
 

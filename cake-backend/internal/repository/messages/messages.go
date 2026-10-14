@@ -14,9 +14,9 @@ func New(db *sqlx.DB) *Repository {
 	return &Repository{conn: db}
 }
 
-func (r *Repository) GetUserRole() (MessageRole, error) {
+func (r *Repository) GetRole(name string) (MessageRole, error) {
 	var role MessageRole
-	err := r.conn.Get(&role, `SELECT * FROM message_roles WHERE name = 'user'`)
+	err := r.conn.Get(&role, `SELECT * FROM message_roles WHERE name = ?`, name)
 	if err != nil {
 		return MessageRole{}, &repo_errors.InternalDbError{Err: err}
 	}
