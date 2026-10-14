@@ -57,6 +57,8 @@ func (oai *OpenAi) GetModels(ctx context.Context, apiKey, baseUrl string) (GetMo
 	return getModelsResponse, nil
 }
 
+// TODO Create Non streaming response method
+
 func (oai *OpenAi) CreateResponse(
 	ctx context.Context,
 	apiKey,
