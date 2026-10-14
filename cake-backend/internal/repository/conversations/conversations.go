@@ -18,7 +18,7 @@ func New(db *sqlx.DB) *Repository {
 	return &Repository{conn: db}
 }
 
-func (r *Repository) GetConversation(ownerUuid, convoUuid uuid.UUID) (Conversation, error) {
+func (r *Repository) GetConversation(ownerUuid, spaceUuid, convoUuid uuid.UUID) (Conversation, error) {
 	var conversation Conversation
 	err := r.conn.Get(&conversation, `SELECT 
 			conversations.id,
@@ -29,7 +29,9 @@ func (r *Repository) GetConversation(ownerUuid, convoUuid uuid.UUID) (Conversati
 			conversations.space_id
 		FROM conversations
 		JOIN users ON conversations.owner_id = users.id
-		WHERE conversations.uuid = ? AND users.uuid = ?`, convoUuid.String(), ownerUuid.String())
+		JOIN spaces ON conversations.space_id = spaces.id
+		WHERE conversations.uuid = ? AND users.uuid = ? AND spaces.uuid = ?`,
+		convoUuid.String(), ownerUuid.String(), spaceUuid.String())
 	if errors.Is(err, sql.ErrNoRows) {
 		return Conversation{}, &repo_errors.ConversationNotFound{}
 	}
@@ -40,7 +42,7 @@ func (r *Repository) GetConversation(ownerUuid, convoUuid uuid.UUID) (Conversati
 	return conversation, nil
 }
 
-func (r *Repository) CreateConversation(ownerUuid uuid.UUID, conversation Conversation) (Conversation, error) {
+func (r *Repository) CreateConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) (Conversation, error) {
 	conversation.CreatedAt = time.Now()
 
 	_, err := r.conn.NamedExec(`INSERT INTO conversations (
@@ -60,5 +62,5 @@ func (r *Repository) CreateConversation(ownerUuid uuid.UUID, conversation Conver
 		return Conversation{}, &repo_errors.InternalDbError{Err: err}
 	}
 
-	return r.GetConversation(ownerUuid, uuid.MustParse(conversation.Uuid))
+	return r.GetConversation(ownerUuid, spaceUuid, uuid.MustParse(conversation.Uuid))
 }

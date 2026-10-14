@@ -44,12 +44,17 @@ type ResponseEventData struct {
 }
 
 type ResponseRequestBody struct {
-	Model           string          `json:"model"`
-	Instructions    string          `json:"instructions"`
-	Stream          bool            `json:"stream"`
-	Store           bool            `json:"store"`
-	MaxOutputTokens int             `json:"max_output_tokens"`
-	Input           []ResponseInput `json:"input"`
+	Model           string            `json:"model"`
+	Instructions    string            `json:"instructions"`
+	Stream          bool              `json:"stream"`
+	Store           bool              `json:"store"`
+	MaxOutputTokens int               `json:"max_output_tokens"`
+	Input           []ResponseInput   `json:"input"`
+	Reasoning       ResponseReasoning `json:"reasoning"`
+}
+
+type ResponseReasoning struct {
+	Effort string `json:"effort"`
 }
 
 type ResponseInput struct {

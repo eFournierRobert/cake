@@ -36,8 +36,7 @@ func (r *Repository) GetWholeConversation(conversationId int) ([]MessageWithRole
 			message_roles.name AS 'role_name'
 		FROM messages
 		JOIN message_roles ON messages.role_id = message_roles.id
-		WHERE messages.conversation_id = ?
-		ORDER BY created_at DESC`, conversationId)
+		WHERE messages.conversation_id = ?`, conversationId)
 	if err != nil {
 		return nil, &repo_errors.InternalDbError{Err: err}
 	}

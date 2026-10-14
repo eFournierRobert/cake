@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"strings"
-	"time"
 )
 
 // OpenAi is an HTTP client for the OpenAI-compatible provider API.
@@ -20,9 +19,7 @@ type OpenAi struct {
 // New creates a provider API client with a ten-second request timeout.
 func New() *OpenAi {
 	return &OpenAi{
-		httpClient: &http.Client{
-			Timeout: 20 * time.Second,
-		},
+		httpClient: &http.Client{},
 	}
 }
 
@@ -63,9 +60,10 @@ func (oai *OpenAi) CreateResponse(
 	apiKey,
 	baseUrl,
 	model,
+	reasoningEffort,
 	instructions string,
 	convoInput []ResponseInput) (ResponseResponse, error) {
-	req, err := oai.createResponseRequest(ctx, apiKey, baseUrl, model, instructions, convoInput, false)
+	req, err := oai.createResponseRequest(ctx, apiKey, baseUrl, model, reasoningEffort, instructions, convoInput, false)
 	if err != nil {
 		return ResponseResponse{}, err
 	}
@@ -99,9 +97,10 @@ func (oai *OpenAi) CreateStreamingResponse(
 	apiKey,
 	baseUrl,
 	model,
+	reasoningEffort,
 	instructions string,
 	convoInput []ResponseInput) (<-chan ResponseEvent, error) {
-	req, err := oai.createResponseRequest(ctx, apiKey, baseUrl, model, instructions, convoInput, true)
+	req, err := oai.createResponseRequest(ctx, apiKey, baseUrl, model, reasoningEffort, instructions, convoInput, true)
 	if err != nil {
 		return nil, err
 	}
@@ -210,6 +209,7 @@ func (oai *OpenAi) createResponseRequest(
 	apiKey,
 	baseUrl,
 	model,
+	reasoningEffort,
 	instructions string,
 	convoInput []ResponseInput,
 	streaming bool) (*http.Request, error) {
@@ -220,6 +220,7 @@ func (oai *OpenAi) createResponseRequest(
 		Store:           false,
 		MaxOutputTokens: 8192,
 		Input:           convoInput,
+		Reasoning:       ResponseReasoning{Effort: reasoningEffort},
 	}
 
 	marshaledBody, err := json.Marshal(responseRequestBody)

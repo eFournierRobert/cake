@@ -219,9 +219,8 @@ func (s *Service) CreateChat(
 		model.ProviderModelId,
 		newMessage.Content,
 		message.ConversationUuid,
-		owner.Id,
-		space.ID,
-		uuid.MustParse(owner.Uuid))
+		owner,
+		space)
 	if err != nil {
 		return nil, err
 	}
@@ -259,6 +258,7 @@ func (s *Service) CreateChat(
 		provider.BaseUrl,
 		model.ProviderModelId,
 		space.SystemPrompt,
+		message.Reasoning,
 		oaiInput)
 	if err != nil {
 		return nil, getAppErrorType(err)
@@ -302,6 +302,16 @@ func (s *Service) CreateChat(
 				case <-ctx.Done():
 				}
 			case "response.completed":
+				if err := s.createAssistantMessage(fullMessage.String(), convo.ID, messageUuid); err != nil {
+					log.Printf("error at the end of completion: %v", err)
+					outputChannel <- models.ChatDto{
+						Error: "error during request",
+						Data: models.ChatDtoData{
+							ConversationUuid: &convo.Uuid,
+						},
+					}
+				}
+
 				select {
 				case outputChannel <- models.ChatDto{
 					Event: data.Data.Type,
@@ -311,15 +321,6 @@ func (s *Service) CreateChat(
 						ConversationUuid: &convo.Uuid,
 					},
 				}:
-					if err := s.createAssistantMessage(fullMessage.String(), convo.ID, messageUuid); err != nil {
-						log.Printf("error at the end of completion: %v", err)
-						outputChannel <- models.ChatDto{
-							Error: "error during request",
-							Data: models.ChatDtoData{
-								ConversationUuid: &convo.Uuid,
-							},
-						}
-					}
 				case <-ctx.Done():
 				}
 			case "response.failed", "response.incomplete":
@@ -363,9 +364,8 @@ func (s *Service) ensureConversation(
 	modelProviderId,
 	message string,
 	convoUuid *string,
-	ownerId,
-	spaceId int,
-	ownerUuid uuid.UUID) (convosRepo.Conversation, error) {
+	owner userRepo.User,
+	space spaceRepo.Space) (convosRepo.Conversation, error) {
 	var convo convosRepo.Conversation
 	var err error
 
@@ -376,6 +376,7 @@ func (s *Service) ensureConversation(
 			apiKey,
 			baseUrl,
 			modelProviderId,
+			"none",
 			"You need to create a short conversation title for the given message. Please Answer only with the title and keep it under 200 char.",
 			[]oai.ResponseInput{{
 				Role:    "user",
@@ -395,11 +396,11 @@ func (s *Service) ensureConversation(
 			break
 		}
 
-		convo, err = s.convosRepo.CreateConversation(ownerUuid, convosRepo.Conversation{
+		convo, err = s.convosRepo.CreateConversation(uuid.MustParse(owner.Uuid), uuid.MustParse(space.Uuid), convosRepo.Conversation{
 			Uuid:    uuid.NewV4().String(),
-			OwnerId: ownerId,
+			OwnerId: owner.Id,
 			Title:   title,
-			SpaceId: spaceId,
+			SpaceId: space.ID,
 		})
 		if err != nil {
 			return convosRepo.Conversation{}, getAppErrorType(err)
@@ -411,7 +412,7 @@ func (s *Service) ensureConversation(
 			return convosRepo.Conversation{}, handler_errors.ErrInvalidRequest
 		}
 
-		convo, err = s.convosRepo.GetConversation(ownerUuid, convoUuid)
+		convo, err = s.convosRepo.GetConversation(uuid.MustParse(owner.Uuid), uuid.MustParse(space.Uuid), convoUuid)
 		if err != nil {
 			return convosRepo.Conversation{}, getAppErrorType(err)
 		}
