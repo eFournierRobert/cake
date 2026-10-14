@@ -3,7 +3,7 @@ package spaces
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 	"net/http"
 
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
@@ -107,12 +107,26 @@ func (h *Handler) chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		handler_errors.WriteError(w, err)
+		return
+	}
+
 	for data := range chatChan {
-		log.Printf("%s\n", data.Event)
-		if data.Data.Content != nil {
-			log.Printf("%s\n", *data.Data.Content)
+		if len(data.Error) > 0 {
+			fmt.Fprintf(w, "event: %s\n\n", data.Error)
 		}
-		log.Printf("%s\n", data.Error)
+
+		chunk, err := json.Marshal(data.Data)
+		if err != nil {
+			return
+		}
+		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", data.Event, string(chunk))
+		flusher.Flush()
 	}
 }
 
