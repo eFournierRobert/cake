@@ -57,6 +57,8 @@ func (r *Repository) GetProvider(uuid uuid.UUID) (Provider, error) {
 	return provider, nil
 }
 
+// GetProviderById returns the provider with the given database id, or
+// *repo_errors.ProviderNotFound when no provider matches.
 func (r *Repository) GetProviderById(id int) (Provider, error) {
 	var provider Provider
 	err := r.conn.Get(&provider,
