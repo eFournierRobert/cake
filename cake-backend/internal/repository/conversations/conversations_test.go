@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 	"uuid"
 
 	"efournierrobert/cake-backend/internal/repository"
@@ -126,4 +127,111 @@ func TestGetConversationIsScopedToOwnerAndSpace(t *testing.T) {
 	_, err = repo.GetConversation(scope.ownerUuid, scope.spaceUuid, uuid.NewV4())
 	assert.ErrorIs(t, err, &repo_errors.ConversationNotFound{})
 	assert.False(t, created.CreatedAt.IsZero())
+}
+
+func createTestConversation(t *testing.T, repo *Repository, scope testScope, title string) Conversation {
+	t.Helper()
+	conversation, err := repo.CreateConversation(scope.ownerUuid, scope.spaceUuid, Conversation{
+		Uuid:    uuid.NewV4().String(),
+		OwnerId: scope.ownerID,
+		Title:   title,
+		SpaceId: scope.spaceID,
+	})
+	require.NoError(t, err)
+	return conversation
+}
+
+func insertTestMessage(t *testing.T, conversationID int, createdAt time.Time) {
+	t.Helper()
+	var roleID int
+	require.NoError(t, testDB.Get(&roleID, "SELECT id FROM message_roles WHERE name = ?", "user"))
+	_, err := testDB.Exec(`INSERT INTO messages (uuid, content, created_at, conversation_id, role_id)
+		VALUES (?, ?, ?, ?, ?)`, uuid.NewV4().String(), "test message", createdAt, conversationID, roleID)
+	require.NoError(t, err)
+}
+
+func TestGetSpaceConversationsIncludesEmptyConversationsOnceAndOrdersByLatestMessage(t *testing.T) {
+	repo := New(testDB)
+	scope := makeTestScope(t)
+	otherScope := makeTestScope(t)
+
+	olderActivity := createTestConversation(t, repo, scope, "older activity")
+	newerActivity := createTestConversation(t, repo, scope, "newer activity")
+	empty := createTestConversation(t, repo, scope, "no messages")
+	otherOwnerConversation := createTestConversation(t, repo, otherScope, "other owner")
+
+	base := time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC)
+	insertTestMessage(t, olderActivity.ID, base.Add(1*time.Minute))
+	insertTestMessage(t, olderActivity.ID, base.Add(3*time.Minute))
+	insertTestMessage(t, newerActivity.ID, base.Add(2*time.Minute))
+	insertTestMessage(t, otherOwnerConversation.ID, base.Add(4*time.Minute))
+
+	got, err := repo.GetSpaceConversations(scope.ownerUuid, scope.spaceUuid)
+	require.NoError(t, err)
+	require.Len(t, got, 3)
+	assert.Equal(t, []string{olderActivity.Uuid, newerActivity.Uuid, empty.Uuid}, []string{
+		got[0].Uuid,
+		got[1].Uuid,
+		got[2].Uuid,
+	})
+
+	wrongSpace, err := repo.GetSpaceConversations(scope.ownerUuid, otherScope.spaceUuid)
+	require.NoError(t, err)
+	assert.Empty(t, wrongSpace)
+}
+
+func TestUpdateConversationUpdatesTitleAndRespectsScope(t *testing.T) {
+	repo := New(testDB)
+	scope := makeTestScope(t)
+	otherScope := makeTestScope(t)
+	created := createTestConversation(t, repo, scope, "original title")
+
+	created.Title = "updated title"
+	updated, err := repo.UpdateConversation(scope.ownerUuid, scope.spaceUuid, created)
+	require.NoError(t, err)
+	assert.Equal(t, "updated title", updated.Title)
+	assert.Equal(t, created.Uuid, updated.Uuid)
+
+	_, err = repo.UpdateConversation(otherScope.ownerUuid, scope.spaceUuid, created)
+	assert.ErrorIs(t, err, &repo_errors.ConversationNotFound{})
+
+	unchanged, err := repo.GetConversation(scope.ownerUuid, scope.spaceUuid, uuid.MustParse(created.Uuid))
+	require.NoError(t, err)
+	assert.Equal(t, "updated title", unchanged.Title)
+}
+
+func TestDeleteConversationDeletesWithinScopeAndCascadesMessages(t *testing.T) {
+	repo := New(testDB)
+	scope := makeTestScope(t)
+	otherScope := makeTestScope(t)
+	created := createTestConversation(t, repo, scope, "delete me")
+	insertTestMessage(t, created.ID, time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC))
+
+	err := repo.DeleteConversation(otherScope.ownerUuid, scope.spaceUuid, created)
+	assert.ErrorIs(t, err, &repo_errors.ConversationNotFound{})
+
+	err = repo.DeleteConversation(scope.ownerUuid, scope.spaceUuid, created)
+	require.NoError(t, err)
+	_, err = repo.GetConversation(scope.ownerUuid, scope.spaceUuid, uuid.MustParse(created.Uuid))
+	assert.ErrorIs(t, err, &repo_errors.ConversationNotFound{})
+
+	var messageCount int
+	require.NoError(t, testDB.Get(&messageCount, "SELECT COUNT(*) FROM messages WHERE conversation_id = ?", created.ID))
+	assert.Zero(t, messageCount)
+}
+
+func TestDeleteConversationReturnsNotFoundWhenMissingOrOutOfScope(t *testing.T) {
+	repo := New(testDB)
+	scope := makeTestScope(t)
+	otherScope := makeTestScope(t)
+	created := createTestConversation(t, repo, scope, "scoped")
+
+	err := repo.DeleteConversation(scope.ownerUuid, otherScope.spaceUuid, created)
+	assert.ErrorIs(t, err, &repo_errors.ConversationNotFound{})
+
+	err = repo.DeleteConversation(scope.ownerUuid, scope.spaceUuid, Conversation{Uuid: uuid.NewV4().String()})
+	assert.ErrorIs(t, err, &repo_errors.ConversationNotFound{})
+
+	_, err = repo.GetConversation(scope.ownerUuid, scope.spaceUuid, uuid.MustParse(created.Uuid))
+	assert.NoError(t, err)
 }
