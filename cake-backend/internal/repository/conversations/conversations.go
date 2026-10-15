@@ -46,6 +46,28 @@ func (r *Repository) GetConversation(ownerUuid, spaceUuid, convoUuid uuid.UUID) 
 	return conversation, nil
 }
 
+func (r *Repository) GetSpaceConversations(ownerUuid, spaceUuid uuid.UUID) ([]Conversation, error) {
+	var conversations []Conversation
+	err := r.conn.Select(&conversations, `SELECT 
+			conversations.id,
+			conversations.uuid,
+			conversations.owner_id,
+			conversations.title,
+			conversations.created_at,
+			conversations.space_id
+		FROM conversations
+		JOIN users ON conversations.owner_id = users.id
+		JOIN spaces ON conversations.space_id = spaces.id
+		JOIN messages ON conversations.id = messages.conversation_id
+		WHERE users.uuid = ? AND spaces.uuid = ?
+		ORDER BY messages.created_at DESC`, ownerUuid.String(), spaceUuid.String())
+	if err != nil {
+		return nil, &repo_errors.InternalDbError{Err: err}
+	}
+
+	return conversations, nil
+}
+
 // CreateConversation inserts a conversation, stamps its creation time, and
 // returns the stored row after verifying it is visible in the supplied scope.
 func (r *Repository) CreateConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) (Conversation, error) {
@@ -69,4 +91,44 @@ func (r *Repository) CreateConversation(ownerUuid, spaceUuid uuid.UUID, conversa
 	}
 
 	return r.GetConversation(ownerUuid, spaceUuid, uuid.MustParse(conversation.Uuid))
+}
+
+func (r *Repository) UpdateConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) (Conversation, error) {
+	_, err := r.conn.Exec(`UPDATE conversations 
+			JOIN users ON conversations.owner_id = users.id
+			JOIN spaces ON conversations.space_id = spaces.id
+			SET conversations.title = ? 
+			WHERE users.uuid = ? AND spaces.uuid = ? AND conversations.uuid = ?`,
+		conversation.Title,
+		ownerUuid.String(),
+		spaceUuid.String(),
+		conversation.Uuid)
+	if err != nil {
+		return Conversation{}, &repo_errors.InternalDbError{Err: err}
+	}
+
+	return r.GetConversation(ownerUuid, spaceUuid, uuid.MustParse(conversation.Uuid))
+}
+
+func (r *Repository) DeleteConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) error {
+	res, err := r.conn.Exec(`DELETE FROM conversations 
+			JOIN users ON conversations.owner_id = users.id
+			JOIN spaces ON conversations.space_id = spaces.id
+			WHERE users.uuid = ? AND spaces.uuid = ? AND conversations.uuid = ?`,
+		ownerUuid.String(),
+		spaceUuid.String(),
+		conversation.Uuid)
+	if err != nil {
+		return &repo_errors.InternalDbError{Err: err}
+	}
+
+	deleted, err := res.RowsAffected()
+	if err != nil {
+		return &repo_errors.InternalDbError{Err: err}
+	}
+	if deleted == 0 {
+		return &repo_errors.ConversationNotFound{}
+	}
+
+	return nil
 }
