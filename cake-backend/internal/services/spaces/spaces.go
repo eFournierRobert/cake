@@ -2,13 +2,21 @@
 package spaces
 
 import (
+	"context"
+	"efournierrobert/cake-backend/internal/encryptor"
 	"efournierrobert/cake-backend/internal/handlers/handler_errors"
 	"efournierrobert/cake-backend/internal/handlers/models"
+	"efournierrobert/cake-backend/internal/oai"
+	convosRepo "efournierrobert/cake-backend/internal/repository/conversations"
+	messagesRepo "efournierrobert/cake-backend/internal/repository/messages"
+	modelsRepo "efournierrobert/cake-backend/internal/repository/models"
+	"efournierrobert/cake-backend/internal/repository/providers"
 	"efournierrobert/cake-backend/internal/repository/repo_errors"
 	spaceRepo "efournierrobert/cake-backend/internal/repository/spaces"
 	userRepo "efournierrobert/cake-backend/internal/repository/users"
 	"errors"
 	"log"
+	"strings"
 	"uuid"
 
 	"github.com/jmoiron/sqlx"
@@ -16,15 +24,27 @@ import (
 
 // Service applies ownership rules and maps persisted spaces to API DTOs.
 type Service struct {
-	repo     spaceRepo.SpaceRepository
-	userRepo userRepo.UserRepository
+	repo          spaceRepo.SpaceRepository
+	userRepo      userRepo.UserRepository
+	messagesRepo  messagesRepo.MessagesRepo
+	convosRepo    convosRepo.ConvosRepo
+	modelsRepo    modelsRepo.ModelRepository
+	providersRepo *providers.Repository
+	oai           *oai.OpenAi
+	encryptor     *encryptor.Encryptor
 }
 
 // New creates a spaces service backed by db.
-func New(db *sqlx.DB) *Service {
+func New(db *sqlx.DB, encryptor *encryptor.Encryptor) *Service {
 	return &Service{
-		repo:     spaceRepo.New(db),
-		userRepo: userRepo.New(db),
+		repo:          spaceRepo.New(db),
+		userRepo:      userRepo.New(db),
+		messagesRepo:  messagesRepo.New(db),
+		convosRepo:    convosRepo.New(db),
+		modelsRepo:    modelsRepo.New(db),
+		providersRepo: providers.New(db),
+		oai:           oai.New(),
+		encryptor:     encryptor,
 	}
 }
 
@@ -152,6 +172,299 @@ func (s *Service) DeleteSpace(ownerUuidStr, spaceUuidStr string) error {
 	return nil
 }
 
+// CreateChat resolves the user and model, checks space ownership, creates or
+// loads a conversation scoped to that user and space, saves the user message,
+// and starts a streaming provider response. It returns errors that occur before
+// streaming begins directly. After the event channel is returned, provider
+// stream read/parse errors and assistant-message persistence failures are sent
+// as response.error. A successfully completed assistant message is persisted
+// before response.completed is emitted. The channel carries response.start,
+// response.output_text.delta, and provider terminal events (response.completed,
+// response.failed, or response.incomplete).
+func (s *Service) CreateChat(
+	ctx context.Context,
+	ownerUuidStr,
+	spaceUuidStr string,
+	message models.ChatCreate) (<-chan models.ChatDto, error) {
+	owner, err := s.getUserFromUuid(ownerUuidStr)
+	if err != nil {
+		return nil, err
+	}
+
+	space, err := s.getSpaceFromUuid(uuid.MustParse(owner.Uuid), spaceUuidStr)
+	if err != nil {
+		return nil, err
+	}
+
+	model, err := s.getModelFromUuid(message.ModelUuid)
+	if err != nil {
+		return nil, err
+	}
+
+	provider, err := s.providersRepo.GetProviderById(model.ProviderId)
+	if err != nil {
+		return nil, getAppErrorType(err)
+	}
+
+	apiKey := []byte{}
+	if len(provider.ApiKey) > 0 {
+		apiKey, err = s.encryptor.Decrypt(provider.ApiKey)
+		if err != nil {
+			return nil, getAppErrorType(err)
+		}
+	}
+
+	newMessage := messagesRepo.Message{
+		Uuid:           uuid.NewV4().String(),
+		Content:        message.Message,
+		ConversationId: 0,
+		RoleId:         0,
+	}
+
+	convo, err := s.ensureConversation(
+		ctx,
+		string(apiKey),
+		provider.BaseUrl,
+		model.ProviderModelId,
+		newMessage.Content,
+		message.ConversationUuid,
+		owner,
+		space)
+	if err != nil {
+		return nil, err
+	}
+
+	newMessage.ConversationId = convo.ID
+
+	role, err := s.messagesRepo.GetRole("user")
+	if err != nil {
+		return nil, getAppErrorType(err)
+	}
+
+	newMessage.RoleId = role.ID
+
+	err = s.messagesRepo.CreateMessage(newMessage)
+	if err != nil {
+		return nil, getAppErrorType(err)
+	}
+
+	wholeConvo, err := s.messagesRepo.GetWholeConversation(convo.ID)
+	if err != nil {
+		return nil, getAppErrorType(err)
+	}
+
+	var oaiInput []oai.ResponseInput
+	for _, m := range wholeConvo {
+		oaiInput = append(oaiInput, oai.ResponseInput{
+			Role:    m.RoleName,
+			Content: m.Content,
+		})
+	}
+
+	oaiChannel, err := s.oai.CreateStreamingResponse(
+		ctx,
+		string(apiKey),
+		provider.BaseUrl,
+		model.ProviderModelId,
+		message.Reasoning,
+		space.SystemPrompt,
+		oaiInput)
+	if err != nil {
+		return nil, getAppErrorType(err)
+	}
+
+	outputChannel := make(chan models.ChatDto)
+
+	go func() {
+		defer close(outputChannel)
+		outputChannel <- models.ChatDto{
+			Event: "response.start",
+			Data:  models.ChatDtoData{},
+		}
+
+		sendError := func() {
+			errorMessage := "error during request"
+			outputChannel <- models.ChatDto{
+				Error: "response.error",
+				Data: models.ChatDtoData{
+					Content:          &errorMessage,
+					ConversationUuid: &convo.Uuid,
+				},
+			}
+		}
+
+		var fullMessage strings.Builder
+		messageUuid := uuid.NewV4()
+		messageUuidStr := messageUuid.String()
+
+		for data := range oaiChannel {
+			if data.Error != nil {
+				log.Printf("error during openAI request: %s", data.Error)
+				sendError()
+				return
+			}
+
+			switch data.Data.Type {
+			case "response.output_text.delta":
+				select {
+				case outputChannel <- models.ChatDto{
+					Event: data.Data.Type,
+					Data: models.ChatDtoData{
+						Content:          &data.Data.Delta,
+						ConversationUuid: &convo.Uuid,
+					},
+				}:
+					fullMessage.WriteString(data.Data.Delta)
+				case <-ctx.Done():
+				}
+			case "response.completed":
+				if err := s.createAssistantMessage(fullMessage.String(), convo.ID, messageUuid); err != nil {
+					log.Printf("error at the end of completion: %v", err)
+					sendError()
+					return
+				}
+
+				select {
+				case outputChannel <- models.ChatDto{
+					Event: data.Data.Type,
+					Data: models.ChatDtoData{
+						MessageUuid:      &messageUuidStr,
+						Content:          nil,
+						ConversationUuid: &convo.Uuid,
+					},
+				}:
+				case <-ctx.Done():
+				}
+			case "response.failed", "response.incomplete":
+				select {
+				case outputChannel <- models.ChatDto{
+					Event: data.Data.Type,
+					Data: models.ChatDtoData{
+						ConversationUuid: &convo.Uuid,
+					},
+				}:
+				case <-ctx.Done():
+				}
+				return
+			}
+		}
+	}()
+
+	return outputChannel, nil
+}
+
+// createAssistantMessage persists the completed provider output as an
+// assistant-role message in the supplied conversation.
+func (s *Service) createAssistantMessage(message string, convoId int, messageUuid uuid.UUID) error {
+	role, err := s.messagesRepo.GetRole("assistant")
+	if err != nil {
+		return err
+	}
+
+	newMessage := messagesRepo.Message{
+		Uuid:           messageUuid.String(),
+		Content:        message,
+		ConversationId: convoId,
+		RoleId:         role.ID,
+	}
+
+	return s.messagesRepo.CreateMessage(newMessage)
+}
+
+// ensureConversation loads the requested conversation only if it belongs to
+// both the owner and space. If convoUuid is nil, it asks the provider for a
+// title and creates a new conversation in the space.
+func (s *Service) ensureConversation(
+	ctx context.Context,
+	apiKey,
+	baseUrl,
+	modelProviderId,
+	message string,
+	convoUuid *string,
+	owner userRepo.User,
+	space spaceRepo.Space) (convosRepo.Conversation, error) {
+	var convo convosRepo.Conversation
+	var err error
+
+	if convoUuid == nil {
+		var titleResponse oai.ResponseResponse
+		titleResponse, err = s.oai.CreateResponse(
+			ctx,
+			apiKey,
+			baseUrl,
+			modelProviderId,
+			"none",
+			"You need to create a short conversation title for the given message. Please Answer only with the title and keep it under 200 char.",
+			[]oai.ResponseInput{{
+				Role:    "user",
+				Content: message,
+			}})
+		if err != nil {
+			return convosRepo.Conversation{}, getAppErrorType(err)
+		}
+
+		var title string
+
+		if len(titleResponse.Output) > 0 {
+			for _, r := range titleResponse.Output {
+				if r.Type != "message" {
+					continue
+				}
+
+				if len(r.Content) > 0 {
+					title = r.Content[0].Text
+					break
+				}
+			}
+		}
+
+		if len(title) == 0 {
+			if len(message) == 0 {
+				title = "fallback title. You should not send empty prompts."
+			} else {
+				title = message[:len(message)/2] + "..."
+			}
+		}
+
+		convo, err = s.convosRepo.CreateConversation(uuid.MustParse(owner.Uuid), uuid.MustParse(space.Uuid), convosRepo.Conversation{
+			Uuid:    uuid.NewV4().String(),
+			OwnerId: owner.Id,
+			Title:   title,
+			SpaceId: space.ID,
+		})
+		if err != nil {
+			return convosRepo.Conversation{}, getAppErrorType(err)
+		}
+
+	} else {
+		convoUuid, err := uuid.Parse(*convoUuid)
+		if err != nil {
+			return convosRepo.Conversation{}, handler_errors.ErrInvalidRequest
+		}
+
+		convo, err = s.convosRepo.GetConversation(uuid.MustParse(owner.Uuid), uuid.MustParse(space.Uuid), convoUuid)
+		if err != nil {
+			return convosRepo.Conversation{}, getAppErrorType(err)
+		}
+	}
+
+	return convo, nil
+}
+
+func (s *Service) getModelFromUuid(uuidStr string) (modelsRepo.Model, error) {
+	userUuid, err := uuid.Parse(uuidStr)
+	if err != nil {
+		return modelsRepo.Model{}, handler_errors.ErrInvalidRequest
+	}
+
+	model, err := s.modelsRepo.GetActiveModel(userUuid)
+	if err != nil {
+		return modelsRepo.Model{}, getAppErrorType(err)
+	}
+
+	return model, nil
+}
+
 func (s *Service) getUserFromUuid(uuidStr string) (userRepo.User, error) {
 	userUuid, err := uuid.Parse(uuidStr)
 	if err != nil {
@@ -164,6 +477,20 @@ func (s *Service) getUserFromUuid(uuidStr string) (userRepo.User, error) {
 	}
 
 	return user, nil
+}
+
+func (s *Service) getSpaceFromUuid(ownerUuid uuid.UUID, uuidStr string) (spaceRepo.Space, error) {
+	spaceUuid, err := uuid.Parse(uuidStr)
+	if err != nil {
+		return spaceRepo.Space{}, handler_errors.ErrInvalidRequest
+	}
+
+	space, err := s.repo.GetUserSpace(ownerUuid, spaceUuid)
+	if err != nil {
+		return spaceRepo.Space{}, getAppErrorType(err)
+	}
+
+	return space, nil
 }
 
 func spaceToDto(s spaceRepo.Space) models.SpaceDto {
@@ -186,6 +513,12 @@ func getAppErrorType(err error) error {
 
 	if _, ok := errors.AsType[*repo_errors.UserNotFound](err); ok {
 		return handler_errors.ErrUserDoesNotExist
+	}
+	if _, ok := errors.AsType[*repo_errors.ModelNotFound](err); ok {
+		return handler_errors.ErrModelNotFound
+	}
+	if _, ok := errors.AsType[*repo_errors.ProviderNotFound](err); ok {
+		return handler_errors.ErrProviderNotFound
 	}
 	return handler_errors.ErrUnexpectedError
 }

@@ -57,7 +57,7 @@ func main() {
 	_ = providerHandler.New(providersService, mux)
 	modelsService := modelService.New(db)
 	_ = modelHandler.New(modelsService, mux)
-	spacesService := spaceService.New(db)
+	spacesService := spaceService.New(db, providerEncryptor)
 	_ = spaceHandler.New(spacesService, mux)
 
 	log.Println("Cake server started and listening on port 8080")

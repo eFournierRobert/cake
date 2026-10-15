@@ -160,6 +160,32 @@ func (r *Repository) GetModel(uuid uuid.UUID) (Model, error) {
 	return model, nil
 }
 
+// GetActiveModel returns the activated model identified by uuid, or
+// ModelNotFound when it is missing or inactive.
+func (r *Repository) GetActiveModel(uuid uuid.UUID) (Model, error) {
+	var model Model
+	err := r.conn.Get(&model,
+		`SELECT 
+    			models.id,
+    			models.uuid,
+    			models.name,
+    			models.description,
+    			models.provider_model_id,
+    			models.provider_id,
+    			models.created_at,
+    			models.activated
+				FROM models
+				WHERE models.uuid = ? AND models.activated = TRUE`, uuid.String())
+	if errors.Is(err, sql.ErrNoRows) {
+		return model, &repo_errors.ModelNotFound{}
+	}
+	if err != nil {
+		return model, &repo_errors.InternalDbError{Err: err}
+	}
+
+	return model, nil
+}
+
 // GetModelWithProviderUuid returns the model and its provider's public UUID, or
 // ModelNotFound when the model is absent.
 func (r *Repository) GetModelWithProviderUuid(uuid uuid.UUID) (ModelWithProviderUuid, error) {

@@ -54,3 +54,10 @@ type SpaceNotFound struct{}
 func (e *SpaceNotFound) Error() string {
 	return "space not found"
 }
+
+// ConversationNotFound is returned when no conversation matches the targeted uuid.
+type ConversationNotFound struct{}
+
+func (e *ConversationNotFound) Error() string {
+	return "conversation not found"
+}
