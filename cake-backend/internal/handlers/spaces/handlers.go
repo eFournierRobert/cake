@@ -117,15 +117,17 @@ func (h *Handler) chat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for data := range chatChan {
-		if len(data.Error) > 0 {
-			fmt.Fprintf(w, "event: %s\n\n", data.Error)
-		}
-
+		event := data.Event
 		chunk, err := json.Marshal(data.Data)
 		if err != nil {
 			return
 		}
-		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", data.Event, string(chunk))
+
+		if len(data.Error) > 0 {
+			event = data.Error
+		}
+
+		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", event, string(chunk))
 		flusher.Flush()
 	}
 }

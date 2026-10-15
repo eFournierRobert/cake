@@ -220,7 +220,11 @@ func (oai *OpenAi) createResponseRequest(
 		Store:           false,
 		MaxOutputTokens: 8192,
 		Input:           convoInput,
-		Reasoning:       ResponseReasoning{Effort: reasoningEffort},
+		Reasoning:       nil,
+	}
+
+	if len(reasoningEffort) > 0 {
+		responseRequestBody.Reasoning = &ResponseReasoning{Effort: reasoningEffort}
 	}
 
 	marshaledBody, err := json.Marshal(responseRequestBody)

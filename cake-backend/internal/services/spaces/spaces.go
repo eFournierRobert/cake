@@ -273,19 +273,26 @@ func (s *Service) CreateChat(
 			Data:  models.ChatDtoData{},
 		}
 
+		sendError := func() {
+			errorMessage := "error during request"
+			outputChannel <- models.ChatDto{
+				Error: "response.error",
+				Data: models.ChatDtoData{
+					Content:          &errorMessage,
+					ConversationUuid: &convo.Uuid,
+				},
+			}
+		}
+
 		var fullMessage strings.Builder
 		messageUuid := uuid.NewV4()
 		messageUuidStr := messageUuid.String()
 
 		for data := range oaiChannel {
 			if data.Error != nil {
-				log.Printf("error during openAI request: %v", err)
-				outputChannel <- models.ChatDto{
-					Error: "error during request",
-					Data: models.ChatDtoData{
-						ConversationUuid: &convo.Uuid,
-					},
-				}
+				log.Printf("error during openAI request: %s", data.Error)
+				sendError()
+				return
 			}
 
 			switch data.Data.Type {
@@ -304,12 +311,8 @@ func (s *Service) CreateChat(
 			case "response.completed":
 				if err := s.createAssistantMessage(fullMessage.String(), convo.ID, messageUuid); err != nil {
 					log.Printf("error at the end of completion: %v", err)
-					outputChannel <- models.ChatDto{
-						Error: "error during request",
-						Data: models.ChatDtoData{
-							ConversationUuid: &convo.Uuid,
-						},
-					}
+					sendError()
+					return
 				}
 
 				select {
@@ -387,13 +390,26 @@ func (s *Service) ensureConversation(
 		}
 
 		var title string
-		for _, r := range titleResponse.Output {
-			if r.Type != "message" {
-				continue
-			}
 
-			title = r.Content[0].Text
-			break
+		if len(titleResponse.Output) > 0 {
+			for _, r := range titleResponse.Output {
+				if r.Type != "message" {
+					continue
+				}
+
+				if len(r.Content) > 0 {
+					title = r.Content[0].Text
+					break
+				}
+			}
+		}
+
+		if len(title) == 0 {
+			if len(message) == 0 {
+				title = "fallback title. You should not send empty prompts."
+			} else {
+				title = message[:len(message)/2] + "..."
+			}
 		}
 
 		convo, err = s.convosRepo.CreateConversation(uuid.MustParse(owner.Uuid), uuid.MustParse(space.Uuid), convosRepo.Conversation{

@@ -2,6 +2,7 @@ package messages
 
 import (
 	"efournierrobert/cake-backend/internal/repository/repo_errors"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -36,7 +37,8 @@ func (r *Repository) GetWholeConversation(conversationId int) ([]MessageWithRole
 			message_roles.name AS 'role_name'
 		FROM messages
 		JOIN message_roles ON messages.role_id = message_roles.id
-		WHERE messages.conversation_id = ?`, conversationId)
+		WHERE messages.conversation_id = ?
+		ORDER BY messages.created_at, messages.id`, conversationId)
 	if err != nil {
 		return nil, &repo_errors.InternalDbError{Err: err}
 	}
@@ -45,6 +47,8 @@ func (r *Repository) GetWholeConversation(conversationId int) ([]MessageWithRole
 }
 
 func (r *Repository) CreateMessage(message Message) error {
+	message.CreatedAt = time.Now()
+
 	_, err := r.conn.NamedExec(`INSERT INTO messages (
                       uuid,
                       content, 
