@@ -9,6 +9,7 @@ type ModelRepository interface {
 	GetModelWithProviderUuid(uuid.UUID) (ModelWithProviderUuid, error)
 	UpdateModel(Model) error
 	DeleteModel(uuid.UUID) error
+	GetActiveModel(uuid uuid.UUID) (Model, error)
 }
 
 var _ ModelRepository = (*Repository)(nil)

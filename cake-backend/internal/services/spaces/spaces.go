@@ -427,7 +427,7 @@ func (s *Service) getModelFromUuid(uuidStr string) (modelsRepo.Model, error) {
 		return modelsRepo.Model{}, handler_errors.ErrInvalidRequest
 	}
 
-	model, err := s.modelsRepo.GetModel(userUuid)
+	model, err := s.modelsRepo.GetActiveModel(userUuid)
 	if err != nil {
 		return modelsRepo.Model{}, getAppErrorType(err)
 	}
