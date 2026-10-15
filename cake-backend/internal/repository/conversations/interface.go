@@ -21,7 +21,7 @@ type ConvosRepo interface {
 	UpdateConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) (Conversation, error)
 	// DeleteConversation deletes a conversation within the supplied scope.
 	// A missing or out-of-scope conversation returns ConversationNotFound.
-	DeleteConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) error
+	DeleteConversation(ownerUuid, spaceUuid, convoUuid uuid.UUID) error
 }
 
 var _ ConvosRepo = (*Repository)(nil)

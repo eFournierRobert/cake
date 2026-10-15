@@ -81,6 +81,13 @@ var (
 		HttpStatus: http.StatusNotFound,
 	}
 
+	// ErrConvoNotFound is returned when the requested conversation does not exist.
+	ErrConvoNotFound = AppError{
+		Code:       "convo_not_found",
+		Message:    "The requested conversation does not exist",
+		HttpStatus: http.StatusNotFound,
+	}
+
 	// ErrInvalidPassword is returned when authentication credentials are invalid.
 	ErrInvalidPassword = AppError{
 		Code:       "invalid_credentials",
