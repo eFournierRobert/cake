@@ -46,6 +46,9 @@ func (r *Repository) GetConversation(ownerUuid, spaceUuid, convoUuid uuid.UUID) 
 	return conversation, nil
 }
 
+// GetSpaceConversations returns conversations visible to the owner in the
+// supplied space, ordered by most recent message. Conversations without messages
+// are included after conversations that have messages.
 func (r *Repository) GetSpaceConversations(ownerUuid, spaceUuid uuid.UUID) ([]Conversation, error) {
 	var conversations []Conversation
 	err := r.conn.Select(&conversations, `SELECT 
@@ -99,6 +102,9 @@ func (r *Repository) CreateConversation(ownerUuid, spaceUuid uuid.UUID, conversa
 	return r.GetConversation(ownerUuid, spaceUuid, uuid.MustParse(conversation.Uuid))
 }
 
+// UpdateConversation changes a conversation's title when it belongs to the
+// supplied owner and space. Missing or out-of-scope conversations return
+// ConversationNotFound.
 func (r *Repository) UpdateConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) (Conversation, error) {
 	_, err := r.conn.Exec(`UPDATE conversations 
 			JOIN users ON conversations.owner_id = users.id
@@ -116,6 +122,9 @@ func (r *Repository) UpdateConversation(ownerUuid, spaceUuid uuid.UUID, conversa
 	return r.GetConversation(ownerUuid, spaceUuid, uuid.MustParse(conversation.Uuid))
 }
 
+// DeleteConversation removes a conversation when it belongs to the supplied
+// owner and space. Missing or out-of-scope conversations return
+// ConversationNotFound.
 func (r *Repository) DeleteConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) error {
 	res, err := r.conn.Exec(`DELETE conversations FROM conversations 
 			JOIN users ON conversations.owner_id = users.id

@@ -382,7 +382,10 @@ paths:
     get:
       tags: [Conversations]
       summary: List conversations in a space
-      description: Only the space owner can access its conversations.
+      description: >-
+        Only the space owner can access its conversations. Results are ordered
+        by latest message first; conversations without messages are included
+        at the end.
       responses:
         '200':
           description: Conversations in the space.
