@@ -172,6 +172,15 @@ func (s *Service) DeleteSpace(ownerUuidStr, spaceUuidStr string) error {
 	return nil
 }
 
+// CreateChat resolves the user and model, checks space ownership, creates or
+// loads a conversation scoped to that user and space, saves the user message,
+// and starts a streaming provider response. It returns errors that occur before
+// streaming begins directly. After the event channel is returned, provider
+// stream read/parse errors and assistant-message persistence failures are sent
+// as response.error. A successfully completed assistant message is persisted
+// before response.completed is emitted. The channel carries response.start,
+// response.output_text.delta, and provider terminal events (response.completed,
+// response.failed, or response.incomplete).
 func (s *Service) CreateChat(
 	ctx context.Context,
 	ownerUuidStr,
@@ -344,6 +353,8 @@ func (s *Service) CreateChat(
 	return outputChannel, nil
 }
 
+// createAssistantMessage persists the completed provider output as an
+// assistant-role message in the supplied conversation.
 func (s *Service) createAssistantMessage(message string, convoId int, messageUuid uuid.UUID) error {
 	role, err := s.messagesRepo.GetRole("assistant")
 	if err != nil {
@@ -360,6 +371,9 @@ func (s *Service) createAssistantMessage(message string, convoId int, messageUui
 	return s.messagesRepo.CreateMessage(newMessage)
 }
 
+// ensureConversation loads the requested conversation only if it belongs to
+// both the owner and space. If convoUuid is nil, it asks the provider for a
+// title and creates a new conversation in the space.
 func (s *Service) ensureConversation(
 	ctx context.Context,
 	apiKey,

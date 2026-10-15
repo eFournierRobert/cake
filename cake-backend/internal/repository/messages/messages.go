@@ -7,14 +7,17 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Repository implements message and role persistence using SQL.
 type Repository struct {
 	conn *sqlx.DB
 }
 
+// New creates a message repository backed by db.
 func New(db *sqlx.DB) *Repository {
 	return &Repository{conn: db}
 }
 
+// GetRole returns the persisted role with the given name.
 func (r *Repository) GetRole(name string) (MessageRole, error) {
 	var role MessageRole
 	err := r.conn.Get(&role, `SELECT * FROM message_roles WHERE name = ?`, name)
@@ -25,6 +28,8 @@ func (r *Repository) GetRole(name string) (MessageRole, error) {
 	return role, nil
 }
 
+// GetWholeConversation returns the conversation's messages in chronological
+// order, using message ID to order entries with equal timestamps.
 func (r *Repository) GetWholeConversation(conversationId int) ([]MessageWithRoleName, error) {
 	var messages []MessageWithRoleName
 	err := r.conn.Select(&messages, `SELECT
@@ -46,6 +51,8 @@ func (r *Repository) GetWholeConversation(conversationId int) ([]MessageWithRole
 	return messages, nil
 }
 
+// CreateMessage assigns the current time to message.CreatedAt and inserts the
+// message row.
 func (r *Repository) CreateMessage(message Message) error {
 	message.CreatedAt = time.Now()
 

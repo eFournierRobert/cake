@@ -2,6 +2,7 @@ package conversations
 
 import "time"
 
+// Conversation is a persisted conversation associated with an owner and space.
 type Conversation struct {
 	ID        int       `db:"id"`
 	Uuid      string    `db:"uuid"`

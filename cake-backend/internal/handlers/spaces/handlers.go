@@ -92,6 +92,10 @@ func (h *Handler) deleteSpace(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// chat accepts a ChatCreate request and streams the service's events using
+// Server-Sent Events. Errors returned before the stream starts use the normal
+// JSON HTTP error response; in-stream errors are sent using their Error value
+// as the SSE event name and the Data object as its JSON payload.
 func (h *Handler) chat(w http.ResponseWriter, r *http.Request) {
 	var req models.ChatCreate
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

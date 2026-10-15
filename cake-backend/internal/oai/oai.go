@@ -11,12 +11,14 @@ import (
 	"strings"
 )
 
-// OpenAi is an HTTP client for the OpenAI-compatible provider API.
+// OpenAi is an HTTP client for OpenAI-compatible model-catalog and Responses
+// APIs, including streaming Responses API events.
 type OpenAi struct {
 	httpClient *http.Client
 }
 
-// New creates a provider API client with a ten-second request timeout.
+// New creates a provider API client using Go's default HTTP transport. It has
+// no client-wide timeout; callers control request lifetime through ctx.
 func New() *OpenAi {
 	return &OpenAi{
 		httpClient: &http.Client{},
@@ -55,6 +57,9 @@ func (oai *OpenAi) GetModels(ctx context.Context, apiKey, baseUrl string) (GetMo
 	return getModelsResponse, nil
 }
 
+// CreateResponse sends a non-streaming Responses API request and decodes its
+// JSON response. A non-success HTTP status, request failure, body-read failure,
+// or invalid response JSON is returned as an error.
 func (oai *OpenAi) CreateResponse(
 	ctx context.Context,
 	apiKey,
@@ -92,6 +97,13 @@ func (oai *OpenAi) CreateResponse(
 	return response, nil
 }
 
+// CreateStreamingResponse posts a streaming Responses API request and returns
+// a channel of recognized response events. The request is opened before this
+// method returns; a goroutine then scans the provider's SSE body.
+// response.output_text.delta, response.completed, response.failed, and
+// response.incomplete events are forwarded, as are parsing/read errors via the
+// event's Error field. Unrecognized event types and [DONE] are not forwarded.
+// Cancelling ctx stops the request and stream reader.
 func (oai *OpenAi) CreateStreamingResponse(
 	ctx context.Context,
 	apiKey,
@@ -204,6 +216,9 @@ func (oai *OpenAi) CreateStreamingResponse(
 	return outputChannel, nil
 }
 
+// createResponseRequest builds a Responses API request. When streaming is
+// true, the provider is asked to return SSE; a non-empty reasoningEffort is
+// included in the request's reasoning settings.
 func (oai *OpenAi) createResponseRequest(
 	ctx context.Context,
 	apiKey,

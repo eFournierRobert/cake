@@ -10,14 +10,18 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Repository implements conversation persistence using SQL.
 type Repository struct {
 	conn *sqlx.DB
 }
 
+// New creates a conversation repository backed by db.
 func New(db *sqlx.DB) *Repository {
 	return &Repository{conn: db}
 }
 
+// GetConversation retrieves a conversation scoped to the supplied owner and
+// space. Missing or out-of-scope rows return ConversationNotFound.
 func (r *Repository) GetConversation(ownerUuid, spaceUuid, convoUuid uuid.UUID) (Conversation, error) {
 	var conversation Conversation
 	err := r.conn.Get(&conversation, `SELECT 
@@ -42,6 +46,8 @@ func (r *Repository) GetConversation(ownerUuid, spaceUuid, convoUuid uuid.UUID) 
 	return conversation, nil
 }
 
+// CreateConversation inserts a conversation, stamps its creation time, and
+// returns the stored row after verifying it is visible in the supplied scope.
 func (r *Repository) CreateConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) (Conversation, error) {
 	conversation.CreatedAt = time.Now()
 
