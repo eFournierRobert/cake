@@ -58,9 +58,15 @@ func (r *Repository) GetSpaceConversations(ownerUuid, spaceUuid uuid.UUID) ([]Co
 		FROM conversations
 		JOIN users ON conversations.owner_id = users.id
 		JOIN spaces ON conversations.space_id = spaces.id
-		JOIN messages ON conversations.id = messages.conversation_id
+		LEFT JOIN (
+		    SELECT messages.conversation_id, MAX(messages.created_at) AS latest_message_at
+		    FROM messages
+		    GROUP BY conversation_id
+		) latest_messages ON conversations.id = latest_messages.conversation_id
 		WHERE users.uuid = ? AND spaces.uuid = ?
-		ORDER BY messages.created_at DESC`, ownerUuid.String(), spaceUuid.String())
+		ORDER BY latest_messages.latest_message_at DESC,
+		         conversations.created_at DESC,
+		         conversations.id DESC`, ownerUuid.String(), spaceUuid.String())
 	if err != nil {
 		return nil, &repo_errors.InternalDbError{Err: err}
 	}
@@ -111,7 +117,7 @@ func (r *Repository) UpdateConversation(ownerUuid, spaceUuid uuid.UUID, conversa
 }
 
 func (r *Repository) DeleteConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) error {
-	res, err := r.conn.Exec(`DELETE FROM conversations 
+	res, err := r.conn.Exec(`DELETE conversations FROM conversations 
 			JOIN users ON conversations.owner_id = users.id
 			JOIN spaces ON conversations.space_id = spaces.id
 			WHERE users.uuid = ? AND spaces.uuid = ? AND conversations.uuid = ?`,
