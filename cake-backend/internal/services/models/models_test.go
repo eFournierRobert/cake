@@ -41,6 +41,10 @@ func (m *mockModelRepository) GetModel(uuid.UUID) (modelsRepo.Model, error) {
 	return m.model, m.modelErr
 }
 
+func (m *mockModelRepository) GetActiveModel(uuid.UUID) (modelsRepo.Model, error) {
+	return m.model, m.modelErr
+}
+
 func (m *mockModelRepository) GetModelWithProviderUuid(uuid.UUID) (modelsRepo.ModelWithProviderUuid, error) {
 	return m.modelWithProvider, m.modelWithErr
 }

@@ -266,8 +266,8 @@ func (s *Service) CreateChat(
 		string(apiKey),
 		provider.BaseUrl,
 		model.ProviderModelId,
-		space.SystemPrompt,
 		message.Reasoning,
+		space.SystemPrompt,
 		oaiInput)
 	if err != nil {
 		return nil, getAppErrorType(err)

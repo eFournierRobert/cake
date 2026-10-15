@@ -1,6 +1,7 @@
 package spaces
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -51,6 +52,11 @@ type mockSpaceService struct {
 	deleteSpaceFunc func(ownerUuid, spaceUuid string) error
 	deleteOwnerArg  string
 	deleteSpaceArg  string
+
+	createChatFunc     func(ctx context.Context, ownerUuid, spaceUuid string, request models.ChatCreate) (<-chan models.ChatDto, error)
+	createChatOwnerArg string
+	createChatSpaceArg string
+	createChatRequest  models.ChatCreate
 }
 
 var _ spaceService.SpaceService = (*mockSpaceService)(nil)
@@ -105,6 +111,17 @@ func (m *mockSpaceService) DeleteSpace(ownerUuid, spaceUuid string) error {
 	return m.deleteSpaceFunc(ownerUuid, spaceUuid)
 }
 
+func (m *mockSpaceService) CreateChat(ctx context.Context, ownerUuid, spaceUuid string, request models.ChatCreate) (<-chan models.ChatDto, error) {
+	m.calls = append(m.calls, "CreateChat")
+	m.createChatOwnerArg = ownerUuid
+	m.createChatSpaceArg = spaceUuid
+	m.createChatRequest = request
+	if m.createChatFunc == nil {
+		return nil, nil
+	}
+	return m.createChatFunc(ctx, ownerUuid, spaceUuid, request)
+}
+
 func makeToken(t *testing.T) string {
 	t.Helper()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
@@ -157,6 +174,7 @@ func TestSpaceEndpointsRequireAuthentication(t *testing.T) {
 		{http.MethodGet, "/spaces/" + testSpaceUuid},
 		{http.MethodPatch, "/spaces/" + testSpaceUuid},
 		{http.MethodDelete, "/spaces/" + testSpaceUuid},
+		{http.MethodPost, "/spaces/" + testSpaceUuid + "/chat"},
 	}
 
 	for _, route := range routes {
@@ -259,6 +277,7 @@ func TestSpaceHandlersRejectMalformedJSON(t *testing.T) {
 	}{
 		{http.MethodPost, "/spaces"},
 		{http.MethodPatch, "/spaces/" + testSpaceUuid},
+		{http.MethodPost, "/spaces/" + testSpaceUuid + "/chat"},
 	}
 
 	for _, route := range routes {
@@ -269,6 +288,50 @@ func TestSpaceHandlersRejectMalformedJSON(t *testing.T) {
 			assert.Empty(t, service.calls, "malformed requests must not reach the service")
 		})
 	}
+}
+
+func TestChatHandlerStreamsServiceEvents(t *testing.T) {
+	conversationUuid := "5b2418f9-8c2d-4b7a-9e51-2c6a0f4d1e8a"
+	messageUuid := "7b2418f9-8c2d-4b7a-9e51-2c6a0f4d1e8a"
+	delta := "Hello"
+	service := &mockSpaceService{
+		createChatFunc: func(_ context.Context, _, _ string, _ models.ChatCreate) (<-chan models.ChatDto, error) {
+			ch := make(chan models.ChatDto, 3)
+			ch <- models.ChatDto{Event: "response.start"}
+			ch <- models.ChatDto{Event: "response.output_text.delta", Data: models.ChatDtoData{Content: &delta, ConversationUuid: &conversationUuid}}
+			ch <- models.ChatDto{Event: "response.completed", Data: models.ChatDtoData{MessageUuid: &messageUuid, ConversationUuid: &conversationUuid}}
+			close(ch)
+			return ch, nil
+		},
+	}
+
+	body := `{"conversation_uuid":"` + conversationUuid + `","model_uuid":"` + messageUuid + `","message":"Hi","reasoning":"medium"}`
+	recorder := doRequest(t, newHandler(service), http.MethodPost, "/spaces/"+testSpaceUuid+"/chat", makeToken(t), body)
+
+	assert.Equal(t, http.StatusOK, recorder.Code)
+	assert.Equal(t, "text/event-stream", recorder.Header().Get("Content-Type"))
+	assert.Equal(t, "no-cache", recorder.Header().Get("Cache-Control"))
+	assert.Equal(t, testOwnerUuid, service.createChatOwnerArg)
+	assert.Equal(t, testSpaceUuid, service.createChatSpaceArg)
+	assert.Equal(t, models.ChatCreate{ConversationUuid: &conversationUuid, ModelUuid: messageUuid, Message: "Hi", Reasoning: "medium"}, service.createChatRequest)
+	assert.Contains(t, recorder.Body.String(), "event: response.start\ndata:")
+	assert.Contains(t, recorder.Body.String(), "event: response.output_text.delta\ndata:")
+	assert.Contains(t, recorder.Body.String(), "\"content\":\"Hello\"")
+	assert.Contains(t, recorder.Body.String(), "event: response.completed\ndata:")
+	assert.Contains(t, recorder.Body.String(), "\"message_uuid\":\""+messageUuid+"\"")
+}
+
+func TestChatHandlerReturnsServiceErrorBeforeStreaming(t *testing.T) {
+	service := &mockSpaceService{
+		createChatFunc: func(context.Context, string, string, models.ChatCreate) (<-chan models.ChatDto, error) {
+			return nil, handler_errors.ErrModelNotFound
+		},
+	}
+	body := `{"model_uuid":"7b2418f9-8c2d-4b7a-9e51-2c6a0f4d1e8a","message":"Hi"}`
+	recorder := doRequest(t, newHandler(service), http.MethodPost, "/spaces/"+testSpaceUuid+"/chat", makeToken(t), body)
+
+	assertError(t, recorder, http.StatusNotFound, "model_not_found")
+	assert.NotEqual(t, "text/event-stream", recorder.Header().Get("Content-Type"))
 }
 
 func TestSpaceHandlerPropagatesServiceErrors(t *testing.T) {
