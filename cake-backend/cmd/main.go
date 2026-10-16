@@ -24,6 +24,7 @@ import (
 	"uuid"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/rs/cors"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -43,9 +44,10 @@ func main() {
 	firstTimeSetup(db)
 
 	mux := http.NewServeMux()
+	handler := cors.Default().Handler(mux)
 	server := &http.Server{
 		Addr:    "0.0.0.0:8080",
-		Handler: mux,
+		Handler: handler,
 	}
 
 	usersService := users.New(db)
