@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -80,6 +81,7 @@ func (oai *OpenAi) CreateResponse(
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		logResponseBodyOnError(resp, resp.StatusCode)
 		resp.Body.Close()
 		return ResponseResponse{}, fmt.Errorf("error: received %d from API %s", resp.StatusCode, baseUrl)
 	}
@@ -123,6 +125,7 @@ func (oai *OpenAi) CreateStreamingResponse(
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		logResponseBodyOnError(resp, resp.StatusCode)
 		resp.Body.Close()
 		return nil, fmt.Errorf("error: received %d from API %s", resp.StatusCode, baseUrl)
 	}
@@ -214,6 +217,20 @@ func (oai *OpenAi) CreateStreamingResponse(
 	}()
 
 	return outputChannel, nil
+}
+
+// logResponseBodyOnError logs the response body when a provider rejects a
+// request.
+func logResponseBodyOnError(resp *http.Response, statusCode int) {
+	body := resp.Body
+
+	requestBody, err := io.ReadAll(body)
+	if err != nil {
+		log.Printf("OpenAI API request failed with status %d; could not read response body for logging: %v", statusCode, err)
+		return
+	}
+
+	log.Printf("OpenAI API request failed with status %d; response body: %s", statusCode, requestBody)
 }
 
 // createResponseRequest builds a Responses API request. When streaming is
