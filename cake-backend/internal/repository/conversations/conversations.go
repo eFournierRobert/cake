@@ -132,7 +132,7 @@ func (r *Repository) DeleteConversation(ownerUuid, spaceUuid, convoUuid uuid.UUI
 			WHERE users.uuid = ? AND spaces.uuid = ? AND conversations.uuid = ?`,
 		ownerUuid.String(),
 		spaceUuid.String(),
-		convoUuid)
+		convoUuid.String())
 	if err != nil {
 		return &repo_errors.InternalDbError{Err: err}
 	}
