@@ -11,6 +11,20 @@ services:
       - "3306:3306"
     volumes:
       - mariadb_data:/var/lib/mysql
+  cake-backend:
+    build: ../
+    image: cake-backend:1.0
+    ports:
+      - "8080:8080"
+    environment:
+      JWT_SECRET: JiGXXRcvma5wZlhgGHr8dCW4GbzuLRHxCjApFtIXltc
+      ENCRYPTION_SECRET: fdd31810589601a271e437fca895fd0a08b1db3c1f40fa7eaf346a13e5c22f7a
+      DATABASE_NAME: cake
+      DATABASE_USER: cake-user
+      DATABASE_PASSWORD: cake-user
+      DATABASE_URL: cake-user:cake-user@tcp(cake-db:3306)/cake?parseTime=true
+    depends_on:
+      - mariadb
 
 volumes:
   mariadb_data:
