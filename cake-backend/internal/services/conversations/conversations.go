@@ -1,3 +1,5 @@
+// Package conversations implements conversation business logic and maps
+// persisted conversations and messages to API DTOs.
 package conversations
 
 import (
@@ -13,11 +15,15 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Service applies conversation ownership rules and maps repository records to
+// API DTOs. Conversation lookups and mutations are always scoped to an owner
+// and space.
 type Service struct {
 	repo         convosRepo.ConvosRepo
 	messagesRepo messages.MessagesRepo
 }
 
+// New creates a conversation service backed by db.
 func New(db *sqlx.DB) *Service {
 	return &Service{
 		repo:         convosRepo.New(db),
@@ -25,6 +31,9 @@ func New(db *sqlx.DB) *Service {
 	}
 }
 
+// GetConversations returns conversations belonging to ownerUuidStr in
+// spaceUuidStr. Invalid UUIDs return ErrInvalidRequest; repository failures
+// return ErrUnexpectedError. An empty result is a non-nil empty slice.
 func (s *Service) GetConversations(ownerUuidStr, spaceUuidStr string) ([]models.ConversationDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
@@ -50,6 +59,10 @@ func (s *Service) GetConversations(ownerUuidStr, spaceUuidStr string) ([]models.
 	return dto, nil
 }
 
+// GetConversation returns the conversation identified by convoUuidStr when it
+// belongs to the supplied owner and space. Invalid UUIDs return
+// ErrInvalidRequest, missing or out-of-scope conversations return
+// ErrConvoNotFound, and other repository failures return ErrUnexpectedError.
 func (s *Service) GetConversation(ownerUuidStr, spaceUuidStr, convoUuidStr string) (models.ConversationDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
@@ -75,6 +88,9 @@ func (s *Service) GetConversation(ownerUuidStr, spaceUuidStr, convoUuidStr strin
 	return convoToDto(convo), nil
 }
 
+// UpdateConversation changes the title of a conversation belonging to the
+// supplied owner and space, then returns the updated DTO. UUID and repository
+// errors are mapped to their corresponding handler errors.
 func (s *Service) UpdateConversation(ownerUuidStr, spaceUuidStr, convoUuidStr, newTitle string) (models.ConversationDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
@@ -108,6 +124,10 @@ func (s *Service) UpdateConversation(ownerUuidStr, spaceUuidStr, convoUuidStr, n
 	return convoToDto(convo), nil
 }
 
+// DeleteConversation removes the conversation identified by convoUuidStr when
+// it belongs to the supplied owner and space. Invalid UUIDs return
+// ErrInvalidRequest, missing or out-of-scope conversations return
+// ErrConvoNotFound, and other repository failures return ErrUnexpectedError.
 func (s *Service) DeleteConversation(ownerUuidStr, spaceUuidStr, convoUuidStr string) error {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
@@ -125,13 +145,18 @@ func (s *Service) DeleteConversation(ownerUuidStr, spaceUuidStr, convoUuidStr st
 	}
 
 	if err := s.repo.DeleteConversation(ownerUuid, spaceUuid, convoUuid); err != nil {
-		log.Printf("UpdateConversation error: %v\n", err)
+		log.Printf("DeleteConversation error: %v\n", err)
 		return getAppErrorType(err)
 	}
 
 	return nil
 }
 
+// GetFullConversation returns messages for a conversation that belongs to the
+// supplied owner and space, in the order provided by the message repository.
+// Invalid UUIDs, missing conversations, and repository failures return their
+// corresponding handler errors. An empty conversation returns a non-nil empty
+// slice.
 func (s *Service) GetFullConversation(ownerUuidStr, spaceUuidStr, convoUuidStr string) ([]models.ConversationMessagesDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
