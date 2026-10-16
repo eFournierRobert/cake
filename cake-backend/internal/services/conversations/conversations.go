@@ -92,6 +92,10 @@ func (s *Service) GetConversation(ownerUuidStr, spaceUuidStr, convoUuidStr strin
 // supplied owner and space, then returns the updated DTO. UUID and repository
 // errors are mapped to their corresponding handler errors.
 func (s *Service) UpdateConversation(ownerUuidStr, spaceUuidStr, convoUuidStr, newTitle string) (models.ConversationDto, error) {
+	if len(newTitle) == 0 {
+		return models.ConversationDto{}, handler_errors.ErrInvalidRequest
+	}
+
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
 		return models.ConversationDto{}, handler_errors.ErrInvalidRequest

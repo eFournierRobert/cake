@@ -3,12 +3,14 @@ package main
 import (
 	"crypto/rand"
 	"efournierrobert/cake-backend/internal/encryptor"
+	conversationHandler "efournierrobert/cake-backend/internal/handlers/conversations"
 	modelHandler "efournierrobert/cake-backend/internal/handlers/model"
 	providerHandler "efournierrobert/cake-backend/internal/handlers/providers"
 	spaceHandler "efournierrobert/cake-backend/internal/handlers/spaces"
 	userHandler "efournierrobert/cake-backend/internal/handlers/users"
 	"efournierrobert/cake-backend/internal/repository"
 	userRepo "efournierrobert/cake-backend/internal/repository/users"
+	conversationService "efournierrobert/cake-backend/internal/services/conversations"
 	modelService "efournierrobert/cake-backend/internal/services/models"
 	providerService "efournierrobert/cake-backend/internal/services/providers"
 	spaceService "efournierrobert/cake-backend/internal/services/spaces"
@@ -59,6 +61,8 @@ func main() {
 	_ = modelHandler.New(modelsService, mux)
 	spacesService := spaceService.New(db, providerEncryptor)
 	_ = spaceHandler.New(spacesService, mux)
+	conversationsService := conversationService.New(db)
+	_ = conversationHandler.New(conversationsService, mux)
 
 	log.Println("Cake server started and listening on port 8080")
 	if err := server.ListenAndServe(); err != nil {

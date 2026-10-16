@@ -1,8 +1,10 @@
 package oai
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -166,4 +168,24 @@ func TestCreateStreamingResponseRejectsNonSuccessStatus(t *testing.T) {
 	_, err := New().CreateStreamingResponse(context.Background(), "", server.URL, "model-a", "", "", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "503")
+}
+
+func TestCreateStreamingResponseLogsResponseBodyOnError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+	}))
+	t.Cleanup(server.Close)
+
+	var logOutput bytes.Buffer
+	originalLogOutput := log.Writer()
+	log.SetOutput(&logOutput)
+	t.Cleanup(func() { log.SetOutput(originalLogOutput) })
+
+	_, err := New().CreateStreamingResponse(
+		context.Background(), "", server.URL, "model-a", "", "Be concise",
+		[]ResponseInput{{Role: "user", Content: "Hello"}},
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "400")
+	assert.Contains(t, logOutput.String(), "response body: invalid request")
 }
