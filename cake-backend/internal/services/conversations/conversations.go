@@ -28,12 +28,12 @@ func New(db *sqlx.DB) *Service {
 func (s *Service) GetConversations(ownerUuidStr, spaceUuidStr string) ([]models.ConversationDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
-		return nil, &handler_errors.ErrInvalidRequest
+		return nil, handler_errors.ErrInvalidRequest
 	}
 
 	spaceUuid, err := uuid.Parse(spaceUuidStr)
 	if err != nil {
-		return nil, &handler_errors.ErrInvalidRequest
+		return nil, handler_errors.ErrInvalidRequest
 	}
 
 	convos, err := s.repo.GetSpaceConversations(ownerUuid, spaceUuid)
@@ -53,17 +53,17 @@ func (s *Service) GetConversations(ownerUuidStr, spaceUuidStr string) ([]models.
 func (s *Service) GetConversation(ownerUuidStr, spaceUuidStr, convoUuidStr string) (models.ConversationDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
-		return models.ConversationDto{}, &handler_errors.ErrInvalidRequest
+		return models.ConversationDto{}, handler_errors.ErrInvalidRequest
 	}
 
 	spaceUuid, err := uuid.Parse(spaceUuidStr)
 	if err != nil {
-		return models.ConversationDto{}, &handler_errors.ErrInvalidRequest
+		return models.ConversationDto{}, handler_errors.ErrInvalidRequest
 	}
 
 	convoUuid, err := uuid.Parse(convoUuidStr)
 	if err != nil {
-		return models.ConversationDto{}, &handler_errors.ErrInvalidRequest
+		return models.ConversationDto{}, handler_errors.ErrInvalidRequest
 	}
 
 	convo, err := s.repo.GetConversation(ownerUuid, spaceUuid, convoUuid)
@@ -78,17 +78,17 @@ func (s *Service) GetConversation(ownerUuidStr, spaceUuidStr, convoUuidStr strin
 func (s *Service) UpdateConversation(ownerUuidStr, spaceUuidStr, convoUuidStr, newTitle string) (models.ConversationDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
-		return models.ConversationDto{}, &handler_errors.ErrInvalidRequest
+		return models.ConversationDto{}, handler_errors.ErrInvalidRequest
 	}
 
 	spaceUuid, err := uuid.Parse(spaceUuidStr)
 	if err != nil {
-		return models.ConversationDto{}, &handler_errors.ErrInvalidRequest
+		return models.ConversationDto{}, handler_errors.ErrInvalidRequest
 	}
 
 	convoUuid, err := uuid.Parse(convoUuidStr)
 	if err != nil {
-		return models.ConversationDto{}, &handler_errors.ErrInvalidRequest
+		return models.ConversationDto{}, handler_errors.ErrInvalidRequest
 	}
 
 	convo, err := s.repo.GetConversation(ownerUuid, spaceUuid, convoUuid)
@@ -111,17 +111,17 @@ func (s *Service) UpdateConversation(ownerUuidStr, spaceUuidStr, convoUuidStr, n
 func (s *Service) DeleteConversation(ownerUuidStr, spaceUuidStr, convoUuidStr string) error {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
-		return &handler_errors.ErrInvalidRequest
+		return handler_errors.ErrInvalidRequest
 	}
 
 	spaceUuid, err := uuid.Parse(spaceUuidStr)
 	if err != nil {
-		return &handler_errors.ErrInvalidRequest
+		return handler_errors.ErrInvalidRequest
 	}
 
 	convoUuid, err := uuid.Parse(convoUuidStr)
 	if err != nil {
-		return &handler_errors.ErrInvalidRequest
+		return handler_errors.ErrInvalidRequest
 	}
 
 	if err := s.repo.DeleteConversation(ownerUuid, spaceUuid, convoUuid); err != nil {
@@ -135,17 +135,17 @@ func (s *Service) DeleteConversation(ownerUuidStr, spaceUuidStr, convoUuidStr st
 func (s *Service) GetFullConversation(ownerUuidStr, spaceUuidStr, convoUuidStr string) ([]models.ConversationMessagesDto, error) {
 	ownerUuid, err := uuid.Parse(ownerUuidStr)
 	if err != nil {
-		return nil, &handler_errors.ErrInvalidRequest
+		return nil, handler_errors.ErrInvalidRequest
 	}
 
 	spaceUuid, err := uuid.Parse(spaceUuidStr)
 	if err != nil {
-		return nil, &handler_errors.ErrInvalidRequest
+		return nil, handler_errors.ErrInvalidRequest
 	}
 
 	convoUuid, err := uuid.Parse(convoUuidStr)
 	if err != nil {
-		return nil, &handler_errors.ErrInvalidRequest
+		return nil, handler_errors.ErrInvalidRequest
 	}
 
 	conversation, err := s.repo.GetConversation(ownerUuid, spaceUuid, convoUuid)
@@ -162,7 +162,7 @@ func (s *Service) GetFullConversation(ownerUuidStr, spaceUuidStr, convoUuidStr s
 }
 
 func fullConversationToDto(fullConvo []messages.MessageWithRoleName) []models.ConversationMessagesDto {
-	var dto []models.ConversationMessagesDto
+	dto := make([]models.ConversationMessagesDto, 0, len(fullConvo))
 	for _, m := range fullConvo {
 		dto = append(dto, models.ConversationMessagesDto{
 			Uuid:      m.Uuid,
