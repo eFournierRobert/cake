@@ -76,7 +76,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/UserNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     patch:
@@ -101,7 +101,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/UserNotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '500':
@@ -132,8 +132,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                invalidCredentials:
+                  value:
+                    code: invalid_credentials
+                    message: Invalid username or password
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/UserNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -184,10 +189,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                invalidCredentials:
+                  value:
+                    code: invalid_credentials
+                    message: Invalid username or password
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/RoleNotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '500':
@@ -213,7 +223,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/UserNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     patch:
@@ -240,7 +250,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/UserOrRoleNotFound'
         '409':
           $ref: '#/components/responses/Conflict'
         '500':
@@ -259,7 +269,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/UserNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -290,10 +300,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+              examples:
+                invalidCredentials:
+                  value:
+                    code: invalid_credentials
+                    message: Invalid username or password
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/UserNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -355,7 +370,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/SpaceNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     patch:
@@ -380,13 +395,13 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/SpaceNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
       tags: [Spaces]
       summary: Delete an owned space
-      description: Deletion is rejected while the space contains conversations. The response body is empty.
+      description: Deleting a space cascades to its conversations and messages. The response body is empty.
       responses:
         '204':
           description: Space deleted.
@@ -395,9 +410,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedText'
         '404':
-          $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
+          $ref: '#/components/responses/SpaceNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -448,7 +461,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ConversationNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     patch:
@@ -473,7 +486,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ConversationNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -488,7 +501,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ConversationNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -519,7 +532,7 @@ paths:
         '401':
           $ref: '#/components/responses/UnauthorizedText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ConversationNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -640,7 +653,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ModelNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -657,7 +670,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ModelNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -745,7 +758,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ProviderNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     put:
@@ -772,7 +785,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ProviderNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
     delete:
@@ -789,7 +802,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ProviderNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -814,7 +827,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ProviderNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -839,7 +852,7 @@ paths:
         '403':
           $ref: '#/components/responses/ForbiddenText'
         '404':
-          $ref: '#/components/responses/NotFound'
+          $ref: '#/components/responses/ProviderNotFound'
         '500':
           $ref: '#/components/responses/InternalError'
 
@@ -863,17 +876,27 @@ components:
 
   responses:
     BadRequest:
-      description: Malformed JSON or a request value rejected by the service.
+      description: Malformed JSON or a request value rejected by the service (`invalid_request`).
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            invalidRequest:
+              value:
+                code: invalid_request
+                message: The request is invalid
     UnauthorizedJson:
-      description: Login credentials are invalid.
+      description: Login credentials are invalid (`invalid_credentials`).
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            invalidCredentials:
+              value:
+                code: invalid_credentials
+                message: Invalid username or password
     UnauthorizedText:
       description: Missing or invalid jwt-token cookie.
       content:
@@ -887,23 +910,135 @@ components:
           schema:
             type: string
     NotFound:
-      description: The requested resource, role, or scoped conversation does not exist.
+      description: One of the requested chat resources does not exist.
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            userNotFound:
+              value:
+                code: user_does_not_exist
+                message: The requested user does not exist
+            spaceNotFound:
+              value:
+                code: space_not_found
+                message: The requested space does not exist
+            conversationNotFound:
+              value:
+                code: convo_not_found
+                message: The requested conversation does not exist
+            modelNotFound:
+              value:
+                code: model_not_found
+                message: The requested model does not exist
+            providerNotFound:
+              value:
+                code: provider_not_found
+                message: The requested provider does not exist
+    UserNotFound:
+      description: No user has the requested UUID (`user_does_not_exist`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            userNotFound:
+              value:
+                code: user_does_not_exist
+                message: The requested user does not exist
+    UserOrRoleNotFound:
+      description: The requested user or role does not exist (`user_does_not_exist` or `role_not_found`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            userNotFound:
+              value:
+                code: user_does_not_exist
+                message: The requested user does not exist
+            roleNotFound:
+              value:
+                code: role_not_found
+                message: The requested role does not exist
+    RoleNotFound:
+      description: The supplied role does not exist (`role_not_found`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            roleNotFound:
+              value:
+                code: role_not_found
+                message: The requested role does not exist
+    ProviderNotFound:
+      description: No provider has the requested UUID (`provider_not_found`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            providerNotFound:
+              value:
+                code: provider_not_found
+                message: The requested provider does not exist
+    ModelNotFound:
+      description: No model has the requested UUID (`model_not_found`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            modelNotFound:
+              value:
+                code: model_not_found
+                message: The requested model does not exist
+    SpaceNotFound:
+      description: No owned space has the requested UUID (`space_not_found`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            spaceNotFound:
+              value:
+                code: space_not_found
+                message: The requested space does not exist
+    ConversationNotFound:
+      description: No conversation in the specified owned space has the requested UUID (`convo_not_found`).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          examples:
+            conversationNotFound:
+              value:
+                code: convo_not_found
+                message: The requested conversation does not exist
     Conflict:
-      description: The request conflicts with existing data or resource state.
+      description: The username conflicts with an existing user (`resource_conflict`).
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            resourceConflict:
+              value:
+                code: resource_conflict
+                message: The provided resource conflicts with an existing one
     InternalError:
-      description: An unexpected server-side failure occurred.
+      description: An unexpected server-side failure occurred (`unexpected_error`).
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
+          examples:
+            unexpectedError:
+              value:
+                code: unexpected_error
+                message: The request encountered an unexpected error
 
   schemas:
     Error:
@@ -913,11 +1048,9 @@ components:
         code:
           type: string
           description: Machine-readable application error code.
-          examples: [invalid_request]
         message:
           type: string
           description: Human-readable error message.
-          examples: [The request is invalid]
 
     LoginRequest:
       type: object
