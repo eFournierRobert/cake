@@ -12,7 +12,7 @@ services:
     volumes:
       - mariadb_data:/var/lib/mysql
   cake-backend:
-    build: ../
+    build: ../cake-backend/
     image: cake-backend:1.0
     ports:
       - "8080:8080"
