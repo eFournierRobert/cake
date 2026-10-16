@@ -125,14 +125,14 @@ func (r *Repository) UpdateConversation(ownerUuid, spaceUuid uuid.UUID, conversa
 // DeleteConversation removes a conversation when it belongs to the supplied
 // owner and space. Missing or out-of-scope conversations return
 // ConversationNotFound.
-func (r *Repository) DeleteConversation(ownerUuid, spaceUuid uuid.UUID, conversation Conversation) error {
+func (r *Repository) DeleteConversation(ownerUuid, spaceUuid, convoUuid uuid.UUID) error {
 	res, err := r.conn.Exec(`DELETE conversations FROM conversations 
 			JOIN users ON conversations.owner_id = users.id
 			JOIN spaces ON conversations.space_id = spaces.id
 			WHERE users.uuid = ? AND spaces.uuid = ? AND conversations.uuid = ?`,
 		ownerUuid.String(),
 		spaceUuid.String(),
-		conversation.Uuid)
+		convoUuid.String())
 	if err != nil {
 		return &repo_errors.InternalDbError{Err: err}
 	}

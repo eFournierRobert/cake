@@ -10,6 +10,7 @@ import (
 
 	"efournierrobert/cake-backend/internal/repository"
 	"efournierrobert/cake-backend/internal/repository/repo_errors"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -207,10 +208,10 @@ func TestDeleteConversationDeletesWithinScopeAndCascadesMessages(t *testing.T) {
 	created := createTestConversation(t, repo, scope, "delete me")
 	insertTestMessage(t, created.ID, time.Date(2026, time.October, 1, 12, 0, 0, 0, time.UTC))
 
-	err := repo.DeleteConversation(otherScope.ownerUuid, scope.spaceUuid, created)
+	err := repo.DeleteConversation(otherScope.ownerUuid, scope.spaceUuid, uuid.MustParse(created.Uuid))
 	assert.ErrorIs(t, err, &repo_errors.ConversationNotFound{})
 
-	err = repo.DeleteConversation(scope.ownerUuid, scope.spaceUuid, created)
+	err = repo.DeleteConversation(scope.ownerUuid, scope.spaceUuid, uuid.MustParse(created.Uuid))
 	require.NoError(t, err)
 	_, err = repo.GetConversation(scope.ownerUuid, scope.spaceUuid, uuid.MustParse(created.Uuid))
 	assert.ErrorIs(t, err, &repo_errors.ConversationNotFound{})
@@ -226,10 +227,10 @@ func TestDeleteConversationReturnsNotFoundWhenMissingOrOutOfScope(t *testing.T) 
 	otherScope := makeTestScope(t)
 	created := createTestConversation(t, repo, scope, "scoped")
 
-	err := repo.DeleteConversation(scope.ownerUuid, otherScope.spaceUuid, created)
+	err := repo.DeleteConversation(scope.ownerUuid, otherScope.spaceUuid, uuid.MustParse(created.Uuid))
 	assert.ErrorIs(t, err, &repo_errors.ConversationNotFound{})
 
-	err = repo.DeleteConversation(scope.ownerUuid, scope.spaceUuid, Conversation{Uuid: uuid.NewV4().String()})
+	err = repo.DeleteConversation(scope.ownerUuid, scope.spaceUuid, uuid.NewV4())
 	assert.ErrorIs(t, err, &repo_errors.ConversationNotFound{})
 
 	_, err = repo.GetConversation(scope.ownerUuid, scope.spaceUuid, uuid.MustParse(created.Uuid))
