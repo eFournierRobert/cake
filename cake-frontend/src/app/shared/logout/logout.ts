@@ -2,7 +2,6 @@ import { Component, inject } from '@angular/core';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
-import { catchError } from 'rxjs';
 
 @Component({
   imports: [TranslatePipe],
