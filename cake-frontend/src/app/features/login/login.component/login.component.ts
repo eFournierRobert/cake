@@ -2,9 +2,10 @@ import { Component, inject } from '@angular/core';
 import { AuthService, LoginBody } from '../../../core/services/auth.service';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { submit } from '@angular/forms/signals';
+import { TranslatePipe } from '@ngx-translate/core';
 
 @Component({
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, TranslatePipe],
   selector: 'app-login',
   styleUrl: './login.component.css',
   templateUrl: './login.component.html',

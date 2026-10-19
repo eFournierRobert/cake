@@ -1,14 +1,14 @@
 <div class="login-container">
   <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
-    <label for="username">Username</label>
+    <label for="username">{{ 'login-page.username' | translate }}</label>
     <br>
     <input type="text" id="username" formControlName="username" autocomplete="username">
     <br>
-    <label for="password">Password</label>
+    <label for="password">{{ 'login-page.password' | translate }}</label>
     <br>
     <input type="password" id="password" formControlName="password" autocomplete="password">
     <br>
 
-    <button type="submit" [disabled]="loginForm.invalid">Log in</button>
+    <button type="submit" [disabled]="loginForm.invalid">{{ 'login-page.login' | translate }}</button>
   </form>
 </div>
