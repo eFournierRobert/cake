@@ -1,0 +1,10 @@
+.profile-popup {
+  position: relative;
+}
+
+.profile-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 1000;
+}

@@ -6,7 +6,7 @@ import { LanguagePicker } from './shared/language-picker/language-picker';
 import { Logout } from './shared/logout/logout';
 
 @Component({
-  imports: [RouterOutlet, LanguagePicker],
+  imports: [RouterOutlet],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',

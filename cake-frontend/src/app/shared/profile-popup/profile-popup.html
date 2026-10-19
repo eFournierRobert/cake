@@ -1,0 +1,13 @@
+<div class="profile-popup">
+  <button
+  (click)="toggleMenu()">
+    {{ currentUser()?.first_name }} {{ currentUser()?.last_name }}
+  </button>
+
+  @if (isOpen) {
+    <div class="profile-menu">
+      <app-language-picker/>
+      <app-logout/>
+    </div>
+  }
+</div>

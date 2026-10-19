@@ -1,8 +1,8 @@
 import { Component } from '@angular/core';
-import { Logout } from '../../../shared/logout/logout';
+import { Header } from '../../../shared/header/header';
 
 @Component({
-  imports: [Logout],
+  imports: [Header],
   selector: 'app-spaces',
   styleUrl: './spaces.css',
   templateUrl: './spaces.html',
