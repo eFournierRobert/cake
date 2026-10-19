@@ -2,9 +2,10 @@ import { Component, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { LoginComponent } from './features/login/login.component/login.component';
 import { TranslateService } from '@ngx-translate/core';
+import { LanguagePicker } from './shared/language-picker/language-picker';
 
 @Component({
-  imports: [RouterOutlet, LoginComponent],
+  imports: [RouterOutlet, LoginComponent, LanguagePicker],
   selector: 'app-root',
   styleUrl: './app.css',
   templateUrl: './app.html',
