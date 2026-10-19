@@ -15,7 +15,7 @@ export class AuthService {
   readonly authenticated = signal(false);
 
   checkSession() {
-    return this.http.get(`${this.baseUrl}/user`).pipe(
+    return this.http.get(`${this.baseUrl}/user`, { withCredentials: true }).pipe(
       tap(() => this.authenticated.set(true)),
         map(() => true),
         catchError(() => {
