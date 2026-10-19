@@ -3,5 +3,8 @@
     "username": "Nom d'utilisateur",
     "password": "Mot de passe",
     "login": "Se connecter"
+  },
+  "shared-components": {
+    "logout": "Se déconnecter"
   }
 }
